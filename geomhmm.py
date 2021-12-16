@@ -29,12 +29,12 @@ class SPDGaussianHMM(_BaseGeomHMM):
     - The normalization constant is computed by MC estimation,
       which is slow. Can perhaps speed up using, e.g., caching.
     """
-    def __init__(self): # Hard code the hyperparameters for now.
+    def __init__(self, max_lag=4, S=3, N=0, p=2, alpha=.25): 
         ## Meta variables:
-        self.max_lag = 4
-        self.S = 3 # Number of hidden states.
-        self.N = 0 # Total number of examples seen.
-        self.p = 2 # Dimension of the SPD matrices.
+        self.max_lag = max_lag
+        self.S = S # Number of hidden states.
+        self.N = N # Total number of examples seen.
+        self.p = p # Dimension of the SPD matrices.
 
         ## Variables to be learned:
         # phi denotes the stationary distribution; initialized to uniform:
@@ -56,7 +56,7 @@ class SPDGaussianHMM(_BaseGeomHMM):
         ## Variables needed to compute phi and B:
         self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method update_phi().
         self.on_basis = [] # Orthonormal basis of some tangent space.
-        self.alpha = .25 # Parameter for Tikhonov regularization, which is used in Tikhonov_inv().
+        self.alpha = alpha # Parameter for Tikhonov regularization, which is used in Tikhonov_inv().
 
     def compute_updated_centroid(self, y_i, gamma_Np1):
         # Initialize the orthonormal frame with respect to the identity matrix: 
@@ -307,7 +307,7 @@ class SPDGaussianHMM(_BaseGeomHMM):
         return 0 
         raise NotImplementedError #TODO
 
-    def compute_norm_factor(self, sigma, num_samples=10000):
+    def compute_norm_factor(self, sigma, num_samples=300): 
         if self.p == 1:
             return sigma*((2*math.pi)**1/2)
         elif self.p == 2:
