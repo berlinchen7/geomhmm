@@ -53,7 +53,7 @@ def generate_ri(gamma, d, N):
     r, _ = mhsample(np.random.rand(d), N+X, pdf, proppdf, proprnd)
     return r[X:] # Chop off the ommited samples.
 
-def randSPDGauss(Ybar, gamma, N):
+def randSPDGauss(Ybar, gamma, N, seed=1):
     """ Generate N samples from a Gaussian SPD manifold with mean Ybar and dispersion gamma.
 
         Ybar: numpy array
@@ -64,6 +64,7 @@ def randSPDGauss(Ybar, gamma, N):
 
     Y = np.zeros((p, p, N))
 
+    np.random.seed(seed)
     Z = np.random.rand(p, p, N)
     O = np.zeros((p, p, N))
     T = np.zeros((p, p, N))
