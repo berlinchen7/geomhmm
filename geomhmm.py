@@ -434,11 +434,16 @@ class SPDGaussianHMM(_BaseGeomHMM):
             raise RuntimeError('self.p is not a positive integer.')
 
     def compute_dist(self, X, Y):
-        """Compute affine-invariant Riemannian distance."""
-        # TODO: The following computation of dist may not be correct:
-        dist = scipy.linalg.logm(np.matmul(np.linalg.inv(X), Y))
-        dist = np.linalg.norm(dist, ord='fro')
-        return dist
+        """Compute affine-invariant Riemannian distance.
+
+        The computation follows manopt:
+        github.com/NicolasBoumal/manopt/blob/master/manopt/manifolds/symfixedrank/sympositivedefinitefactory.m
+        """
+        sqrt_tr = lambda A: np.emath.sqrt(np.trace(A@A))
+        # There should be no need to take the real part, but rounding errors
+        # may cause a small imaginary part to appear, so we discard it.
+        log_invXY = np.real(scipy.linalg.logm(np.linalg.inv(X)@Y))
+        return np.real(sqrt_tr(log_invXY))
 
     def compute_B(self, y, i):
         """Compute the conditional density B(y | i)."""
