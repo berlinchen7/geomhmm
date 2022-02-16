@@ -52,9 +52,9 @@ def gen_ex2(num_ex=100):
             y.append(y2.pop())
 
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
-            'A': np.eye(3), 'phi': phi}
+            'A': np.eye(2), 'phi': phi}
 
-def gen_ex3(num_ex=200):
+def gen_ex3(num_ex=500, num_truncated_ex=100):
     '''
     Three mixture components, with nontrivial
     transition matrix.
@@ -105,6 +105,8 @@ def gen_ex3(num_ex=200):
         else:
             y.append(y3.pop())
 
+    y = y[num_truncated_ex:]
+
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
@@ -120,20 +122,20 @@ def evaluate(m, y, label):
 
 
 def main():
-#    print('Processing test case 1...')
-#    # y1 is the generated samples, while
-#    # target is a dictionary containing the labels:
-#    y1, label1 = gen_ex1()
-#    m1 = SPDGaussianHMM(S=1, p=3)
-#    evaluate(m1, y1, label1)
+    print('\n\nProcessing test case 1...')
+    # y1 is the generated samples, while
+    # target is a dictionary containing the labels:
+    y1, label1 = gen_ex1()
+    m1 = SPDGaussianHMM(S=1, p=3)
+    evaluate(m1, y1, label1)
 
-#    print('Processing test case 2...')
-#    y2, label2 = gen_ex2()
-#    m2 = SPDGaussianHMM(S=2, p=3)
-#    evaluate(m2, y2, label2)
+    print('\n\nProcessing test case 2...')
+    y2, label2 = gen_ex2()
+    m2 = SPDGaussianHMM(S=2, p=3)
+    evaluate(m2, y2, label2)
 
-    print('Processing test case 3...')
-    y3, label3 = gen_ex3()
+    print('\n\nProcessing test case 3...')
+    y3, label3 = gen_ex3(num_ex=800)
     m3 = SPDGaussianHMM(S=3, p=3)
     evaluate(m3, y3, label3)
 

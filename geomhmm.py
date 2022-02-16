@@ -263,6 +263,10 @@ class SPDGaussianHMM(_BaseGeomHMM):
                 self.B_params[k] = [y_Np1[k], sigma_Np1[k]]
 #                self.B_params[k] = [y_Np1[k], 1]
 
+    def update_hat_A_dev(self):
+        # TODO: Replace the convex optimization package, cvxpy, with cvxopt, which seems more reliable.
+        raise NotImplementedError
+
     def update_hat_A(self):
         """Update estimate for A using convex opt."""
 
@@ -300,22 +304,108 @@ class SPDGaussianHMM(_BaseGeomHMM):
         self.A_hat = A_hat_stack.value
 
     def compute_norm_factor_second_derivative(self, sigma, num_samples=10000):
-        return -1
-        raise NotImplementedError #TODO
+        if self.p == 1:
+            return 0
+        if self.p == 2:
+            # tmp stores the value of $\frac{d}{d\sigma}e^{\sigma^2/4}\text{erf}(\sigma/2)$
+            tmp = (sigma/2)*math.exp((sigma**2)/4)*math.erf(sigma/2)
+            tmp += math.exp((sigma**2)/4)*math.exp(-1*(sigma**2))/(math.pi**.5)
+            ret = 2*math.exp((sigma**2)/4)*math.erf(sigma/2) + 2*sigma*tmp
+            ret += (3/2)*(sigma**2)*math.exp((sigma**2)/4)*math.erf(sigma/2) + .5*(sigma**3)*tmp
+            ret += (2*(math.pi**(-.5)))*sigma*math.exp(-.75*(sigma**2)) - (1.5*(math.pi**(-.5)))*(sigma**3)*math.exp(-.75*(sigma**2))
+            ret *= (2*math.pi)**(3/2)
+            return ret
+        if self.p > 2:
+            # Use Monte Carlo simulation to estimate the derivative of the integral
+            # found in (24b) of Said et al.. TODO: Need to make sure I can exchange
+            # integral with derivative here, and that the integral always converges.
+            # Can optimize by caching these these values.
+            mean = np.zeros(self.p)
+            cov = np.eye(self.p)*(sigma**2)
+            # Create MC samples that have shape (num_samples, self.p):
+            r = np.random.multivariate_normal(mean, cov, num_samples)
+            int_samples = np.zeros(num_samples)
+            norm_const = ((2*math.pi)**self.p/2)*(sigma**self.p)
+            for i in range(num_samples):
+                curr_r = r[i]
+                curr_int_est = 1
+                for j in range(self.p):
+                    for k in range(i+1, self.p):
+                        curr_int_est *= math.sinh(abs(curr_r[j] - curr_r[k])/2)
+
+                # Multiply by the additional term associated with taking the second derivative
+                # of $e^{- (r_1^2+\cdots +r_m^2)/(2\sigma^2)}$:
+                sum_ri_sq = np.linalg.norm(r)**2
+                tmp = sum_ri_sq/(sigma**6) - 3/(sigma**4)
+                curr_int_est *= sum_ri_sq*tmp
+
+                int_samples[i] = curr_int_est*norm_const
+
+            ret = np.mean(int_samples)
+
+            # Finally, multiply the estimate by the constant expressed in (24b) of Said et al.:
+            Gamma_m = math.exp(scipy.special.multigammaln(self.p/2, self.p))
+            omega_m = (2**self.p)*(math.pi**(.5*(self.p**2)))/Gamma_m
+            const = (math.factorial(self.p)*(2**self.p))**-1
+            const *= omega_m
+            const *= 8**(self.p*(self.p-1)*.25)
+            return const*ret
+        else:
+            raise RuntimeError('self.p is not a positive integer.')
 
     def compute_norm_factor_first_derivative(self, sigma, num_samples=10000):
-        return 0 
-        raise NotImplementedError #TODO
+        if self.p == 1:
+            return (2*math.pi)**(1/2)
+        elif self.p == 2:
+            ret = 2*sigma*math.exp((sigma**2)/4)*math.erf(sigma/2)
+            ret += (sigma**3)*.5*math.exp((sigma**2)/4)*math.erf(sigma/2)
+            ret += (sigma**2)*(math.pi**(-.5))*math.exp(-.75*(sigma**2))
+            ret *= (2*math.pi)**(3/2)
+            return ret
+        elif self.p > 2:
+            # Use Monte Carlo simulation to estimate the derivative of the integral 
+            # found in (24b) of Said et al.. TODO: Need to make sure I can exchange
+            # integral with derivative here, and that the integral always converges.
+            # Can optimize by caching these these values.
+            mean = np.zeros(self.p)
+            cov = np.eye(self.p)*(sigma**2)
+            # Create MC samples that have shape (num_samples, self.p):
+            r = np.random.multivariate_normal(mean, cov, num_samples)
+            int_samples = np.zeros(num_samples)
+            norm_const = ((2*math.pi)**self.p/2)*(sigma**self.p)
+            for i in range(num_samples):
+                curr_r = r[i]
+                curr_int_est = 1
+                for j in range(self.p):
+                    for k in range(i+1, self.p):
+                        curr_int_est *= math.sinh(abs(curr_r[j] - curr_r[k])/2)
+
+                # Multiply by the additional term associated with taking the derivative 
+                # of $e^{- (r_1^2+\cdots +r_m^2)/(2\sigma^2)}$: 
+                curr_int_est *= (np.linalg.norm(r)**2)/(sigma**3)
+
+                int_samples[i] = curr_int_est*norm_const
+
+            ret = np.mean(int_samples)
+
+            # Finally, multiply the estimate by the constant expressed in (24b) of Said et al.:
+            Gamma_m = math.exp(scipy.special.multigammaln(self.p/2, self.p))
+            omega_m = (2**self.p)*(math.pi**(.5*(self.p**2)))/Gamma_m
+            const = (math.factorial(self.p)*(2**self.p))**-1
+            const *= omega_m
+            const *= 8**(self.p*(self.p-1)*.25)
+            return const*ret
+        else:
+            raise RuntimeError('self.p is not a positive integer.') 
 
     def compute_norm_factor(self, sigma, num_samples=300): 
         if self.p == 1:
-            return sigma*((2*math.pi)**1/2)
+            return sigma*((2*math.pi)**(1/2))
         elif self.p == 2:
             return ((2*math.pi)**(3/2)) * (sigma**2) * (math.exp(sigma**2/4)) * math.erf(sigma/2)
         elif self.p > 2:
             # Use Monte Carlo simulation to estimate the integral found in (24b) of Said et al..
             # Can optimize by caching these these values.
-            int_est = 0
             mean = np.zeros(self.p)
             cov = np.eye(self.p)*(sigma**2)
             # Create MC samples that have shape (num_samples, self.p):
@@ -345,6 +435,7 @@ class SPDGaussianHMM(_BaseGeomHMM):
 
     def compute_dist(self, X, Y):
         """Compute affine-invariant Riemannian distance."""
+        # TODO: The following computation of dist may not be correct:
         dist = scipy.linalg.logm(np.matmul(np.linalg.inv(X), Y))
         dist = np.linalg.norm(dist, ord='fro')
         return dist
