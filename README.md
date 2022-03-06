@@ -1,4 +1,4 @@
-# `geohmm`: Geometric Hidden Markov Models
+# `geomhmm`: Geometric Hidden Markov Models
 
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 
@@ -28,7 +28,7 @@ print(m.B_params, m.phi, m.A_hat) # Print the current estimates
 ## What's inside
 
 * The file `geomhmm.py` is the meat of the code and contains the implementation of the learner itself. Currently we have `EuclideanGaussianHMM`, `PoincareDiskGaussianHMM`, and `SPDGaussianHMM`, which are learners for HMMs with observed values in Euclidean space / Poincare Disk / SPD matrices, respectively. More documentations on how to initialize/use these learners to come.
-* The files `randSPDGauss.py`/`randPoincGauss.py` contains the code to sample a Gaussian distribution of SPD manifolds / Poincare Disk.
+* The files `randSPDGauss.py`/`randPoincGauss.py` contain the code to sample a Gaussian distribution of SPD manifolds / Poincare Disk.
 * The file `func_test.py` contains a suite of examples used to test the implementation.
 * The file `exp.py` runs experiments that replicate the set-up used by Salem et al., 2021 and by Tupker et al., 2021.
     * For example, you can run `python exp.py --mode Salem2021 --givenTrue False` to replicate the set-up used by Salem et al., 2021 (the `givenTrue` flag controls whether the we want the learner to learn the emission probabilities/stationary distribution as well; `False` means we do want to learn those variables).
