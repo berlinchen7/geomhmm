@@ -42,7 +42,7 @@ def generate_ri(gamma, d, N):
     """ Generate random r_i samples (see equation (29) of Said et al., 2017)
     """
 
-    X = 1000 # Number of initial samples we want to omit.
+    X = 50 # Number of initial samples we want to omit.
     delta = gamma
 
     def pdf(x): 

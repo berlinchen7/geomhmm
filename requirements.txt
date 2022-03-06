@@ -1,0 +1,8 @@
+numpy
+scipy
+sklearn
+cvxpy
+cvxopt
+torch
+geoopt
+
