@@ -1,3 +1,9 @@
+# `geohmm`: Geometric Hidden Markov Models
+
+[![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
+
+This is an implementation of a learner for the generalized Hidden Markov Models, where the observed random variables are manifold-valued (we call such model a *geometric hidden Markov model*).
+
 ## Getting started
 
  Testing the code in your local environment is as simple as:
