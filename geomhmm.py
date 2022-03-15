@@ -22,7 +22,7 @@ class _BaseGaussianHMM(BaseEstimator):
                  init_B_params=None): 
 
         ## Meta variables:
-        self.max_lag = max_lag
+        self.max_lag = max_lag # Max lag parameter used for the moment-matching, i.e., $\bar\tau$ in Matila et al., 2020.
         self.S = S # Number of hidden states.
         self.N = N # Total number of examples seen.
 
@@ -38,7 +38,7 @@ class _BaseGaussianHMM(BaseEstimator):
             self.B_params = init_B_params
 
         ## Variables needed to compute A:
-        self.H_hat = np.zeros([self.max_lag, self.S, self.S])
+        self.H_hat = np.zeros([self.max_lag + 1, self.S, self.S])
         self.K_hat = np.zeros([self.S, self.S])
         # Cached observations used to compute H hat:
         self.obs_cache = []
@@ -81,7 +81,7 @@ class _BaseGaussianHMM(BaseEstimator):
         self.H_hat[0, :, :] /= (self.N + len_new_obs)
 
         # For t > 0:
-        for t in range(self.max_lag):
+        for t in range(self.max_lag + 1):
             curr_tau = t+1
             for i in range(self.S):
                 for j in range(self.S):
@@ -92,7 +92,7 @@ class _BaseGaussianHMM(BaseEstimator):
                         y_t = y[offset + k]
                         y_t_minus_tau = y[offset + k - curr_tau]
                         
-                        self.H_hat[t, i, j] += self.compute_B(y_t, i)*self.compute_B(y_t_minus_tau, j)
+                        self.H_hat[t, i, j] += self.compute_B(y_t_minus_tau, i)*self.compute_B(y_t, j)
 
                     self.H_hat[t, i, j] /= (self.N + len_new_obs - curr_tau)
                    
@@ -125,7 +125,7 @@ class _BaseGaussianHMM(BaseEstimator):
         X_hat.append(np.diag(pi_hat_inf))
 
         # Solving for (19) in Matila et al., 2020:
-        for tau in range(1, self.max_lag):
+        for tau in range(1, self.max_lag + 1):
             X_hat_tau_minus_one = X_hat[tau - 1].copy()
             kron_prod = np.kron(self.K_hat.T, self.K_hat.T @ X_hat_tau_minus_one)
             P = 2 * matrix(kron_prod.T @ kron_prod)
@@ -142,7 +142,7 @@ class _BaseGaussianHMM(BaseEstimator):
             X_hat.append(X_hat_tau_minus_one @ curr_sol)
 
         # Solving for (21) in Matila et al., 2020:
-        prev_X_hat = np.vstack(X_hat[:self.max_lag - 1])
+        prev_X_hat = np.vstack(X_hat[:self.max_lag])
         next_X_hat = np.vstack(X_hat[1:])
 
         kron_prod = np.kron(np.eye(self.S), prev_X_hat)
@@ -160,9 +160,9 @@ class _BaseGaussianHMM(BaseEstimator):
 
 
     def update_hat_A_deprecated(self):
-        """Update estimate for A using the cvxopt package.
+        """Update estimate for A using the cvxpy package.
 
-        Note: Deprecated, as cvxopt is unstable in our use case. See
+        Note: Deprecated, as cvxpy is unstable in our use case. See
         https://stackoverflow.com/questions/59843953/receiving-none-as-result-in-cvxpy-problem-solver
         """
 
@@ -247,6 +247,16 @@ class _BaseGaussianHMM(BaseEstimator):
         self.obs_cache = self.obs_cache[-self.max_lag:]
 
         self.N += len(y)
+
+    def find_cached_value(self, cache, arg, tolerance):
+        """ Find cache[approx_arg], where |approx_arg - arg| < tolerance.
+        """
+        cached_args = np.array(list(cache.keys()))
+        diff = cached_args - arg
+        approx_arg = cached_args[diff < tolerance]
+        if approx_arg.shape[0] == 0: # Nothing within the given tolerance.
+            return None
+        return cache[approx_arg[0]]
 
 class EuclideanGaussianHMM(_BaseGaussianHMM):
     def __init__(self, 
@@ -511,7 +521,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
       since haven't figured out how to systematically compute
       an orthonormal basis, where the first basis has trace zero.
     - The normalization constant is computed by MC estimation,
-      which is slow. Can perhaps speed up using, e.g., caching.
+      which is slow. So we can speed up by using, e.g., caching.
     """
     def __init__(self, 
                  max_lag=3, 
@@ -543,6 +553,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method update_phi().
         self.on_basis = [] # Orthonormal basis of some tangent space.
         self.alpha = alpha # Parameter for Tikhonov regularization, which is used in Tikhonov_inv().
+
+        # Cached sigma values:
+        self.cached_zeta = {}
+        self.cached_zeta_prime = {}
+        self.cached_zeta_prime_prime = {}
+
 
     def compute_updated_phi(self, y_i, gamma_Np1):
         # Compute update of phi. See Zanini et al. 2017, eqn (6).
@@ -748,7 +764,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             for k in range(self.S):
                 self.B_params[k] = [y_Np1[k], sigma_Np1[k]]
 
-    def compute_norm_factor_second_derivative(self, sigma):
+    def compute_norm_factor_second_derivative(self, sigma, cache_tolerance=.01):
         num_samples = self.num_samples_sigma_prime_prime
         if self.p == 1:
             return 0
@@ -762,6 +778,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             ret *= (2*math.pi)**(3/2)
             return ret
         if self.p > 2:
+            # If the norm factor has been computed before, re-use the computed value.
+            # cached_val = self.find_cached_value(self.cached_zeta_prime_prime, sigma, cache_tolerance)
+            # if cached_val is not None:
+            #     return cached_val
+
+
             # Use Monte Carlo simulation to estimate the derivative of the integral
             # found in (24b) of Said et al.. TODO: Need to make sure I can exchange
             # integral with derivative here, and that the integral always converges.
@@ -795,11 +817,15 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             const = (math.factorial(self.p)*(2**self.p))**-1
             const *= omega_m
             const *= 8**(self.p*(self.p-1)*.25)
-            return const*ret
+            ret = const*ret
+
+            # Update the cache:
+            # self.cached_zeta_prime_prime[sigma] = ret
+            return ret
         else:
             raise RuntimeError('self.p is not a positive integer.')
 
-    def compute_norm_factor_first_derivative(self, sigma):
+    def compute_norm_factor_first_derivative(self, sigma, cache_tolerance=.01):
         num_samples = self.num_samples_sigma_prime
         if self.p == 1:
             return (2*math.pi)**(1/2)
@@ -810,6 +836,11 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             ret *= (2*math.pi)**(3/2)
             return ret
         elif self.p > 2:
+            # If the norm factor has been computed before, re-use the computed value.
+            # cached_val = self.find_cached_value(self.cached_zeta_prime, sigma, cache_tolerance)
+            # if cached_val is not None:
+            #     return cached_val
+
             # Use Monte Carlo simulation to estimate the derivative of the integral 
             # found in (24b) of Said et al.. TODO: Need to make sure I can exchange
             # integral with derivative here, and that the integral always converges.
@@ -841,17 +872,26 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             const = (math.factorial(self.p)*(2**self.p))**-1
             const *= omega_m
             const *= 8**(self.p*(self.p-1)*.25)
-            return const*ret
+            ret = const*ret
+
+            # Update the cache:
+            # self.cached_zeta[sigma] = ret
+            return ret
         else:
             raise RuntimeError('self.p is not a positive integer.') 
 
-    def compute_norm_factor(self, sigma): 
+    def compute_norm_factor(self, sigma, cache_tolerance=.001): 
         num_samples = self.num_samples_sigma
         if self.p == 1:
             return sigma*((2*math.pi)**(1/2))
         elif self.p == 2:
             return ((2*math.pi)**(3/2)) * (sigma**2) * (math.exp(sigma**2/4)) * math.erf(sigma/2)
         elif self.p > 2:
+            # If the norm factor has been computed before, re-use the computed value.
+            # cached_val = self.find_cached_value(self.cached_zeta, sigma, cache_tolerance)
+            # if cached_val is not None:
+            #     return cached_val
+
             # Use Monte Carlo simulation to estimate the integral found in (24b) of Said et al..
             # Can optimize by caching these these values.
             mean = np.zeros(self.p)
@@ -877,7 +917,11 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             const = (math.factorial(self.p)*(2**self.p))**-1
             const *= omega_m
             const *= 8**(self.p*(self.p-1)*.25)
-            return const*ret
+            ret = const*ret
+
+            # Update the cache:
+            # self.cached_zeta[sigma] = ret
+            return ret
         else:
             raise RuntimeError('self.p is not a positive integer.')
 

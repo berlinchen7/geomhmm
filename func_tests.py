@@ -26,10 +26,13 @@ def gen_ex1(num_ex=1000):
 
 def gen_ex2(num_ex=100):
     '''
-    Two mixture components, with identity
-    transition matrix.
+    Two mixture components.
     This is one of the examples tested in
     the Zanini et al., 2017 paper.
+
+    Note: we expect the learning of the transition matrix
+    to fail because the identity transition matrix
+    is not recurruent and has no unique staionary distribution.
     '''
 
     true_mean1 = np.eye(3)
@@ -273,6 +276,98 @@ def gen_ex7(num_ex=1000, seed=2):
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
+def gen_ex8(num_ex=200, seed=2):
+    '''
+    Two mixture components on the SPD manifold, with non-trivial
+    transition matrix.
+    '''
+    np.random.seed(seed)
+
+    true_mean1 = np.eye(3)
+    true_mean2 = np.array([[1, .7, .49],                                        
+                          [.7, 1, .7],                                         
+                          [.49, .7, 1]])
+    true_disp1 = true_disp2 = .1
+
+    y1 = randSPDGauss.randSPDGauss(true_mean1, true_disp1, num_ex, seed=seed)
+    y1 = [y1[:,:,i] for i in range(y1.shape[2])]
+    y2 = randSPDGauss.randSPDGauss(true_mean2, true_disp2, num_ex, seed=seed+1)
+    y2 = [y2[:,:,i] for i in range(y2.shape[2])]
+
+    A = np.array([[.4, .6],
+                  [.2, .8]])
+
+    phi = [.25, .75]
+
+
+    # Construct the Markov chain:
+    x = []
+    init_dist = [1, 0]
+    curr_state = np.random.multinomial(1, init_dist, size=1)
+    curr_state = np.argmax(curr_state, axis=1)[0]
+    x.append(curr_state)
+    for i in range(num_ex-1):
+        curr_state = np.random.multinomial(1, A[curr_state], size=1)
+        curr_state = np.argmax(curr_state, axis=1)[0]
+        x.append(curr_state)
+
+    y = []
+    for xi in x:
+        if xi == 0:
+            y.append(y1.pop())
+        else:
+            y.append(y2.pop())
+
+    return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
+            'A': A, 'phi': phi}
+
+
+def gen_ex9(num_ex=200, seed=2):
+    '''
+    Two mixture components on the Euclidean space, with non-trivial
+    transition matrix.
+    '''
+    np.random.seed(seed)
+
+    mean1 = np.array([0])
+    disp1 = np.eye(1)*.5
+
+    mean2 = np.array([-1])
+    disp2 = np.eye(1)*.5
+
+
+    A = np.array([[.4, .6],
+                  [.2, .8]])
+
+    phi = [.25, .75]
+
+    # Construct the Markov chain:
+    x = []
+    init_dist = [1, 0]
+    curr_state = np.random.multinomial(1, init_dist, size=1)
+    curr_state = np.argmax(curr_state, axis=1)[0]
+    x.append(curr_state)
+    for i in range(num_ex-1):
+        curr_state = np.random.multinomial(1, A[curr_state], size=1)
+        curr_state = np.argmax(curr_state, axis=1)[0]
+        x.append(curr_state)
+
+    # Construct the observations:
+    y1 = np.random.multivariate_normal(mean1, disp1, num_ex)
+    y2 = np.random.multivariate_normal(mean2, disp2, num_ex)
+ 
+    y1, y2 = list(y1), list(y2)
+
+    y = []
+    for xi in x:
+        if xi == 0:
+            y.append(y1.pop())
+        else:
+            y.append(y2.pop())
+
+    return y, {'B': [[mean1, disp1], [mean2, disp2]],
+            'A': A, 'phi': phi}
+
 
 def evaluate(m, y, label, fit_B_phi=True):
     m.partial_fit(y, fit_B_phi)
@@ -341,6 +436,17 @@ def main():
     # m10 = PoincareDiskGaussianHMM(S=3, max_lag=6, num_samples_K=100)
     # m10.B_params, m10.phi = label10['B'], np.array(label10['phi'])
     # evaluate(m10, y10, label10, fit_B_phi=False)
+
+    # print('\n\nProcessing test case 11...')
+    # y11, label11 = gen_ex8(num_ex=2000, seed=100)
+    # m11 = SPDGaussianHMM(S=2, p=3, max_lag=20, num_samples_K=2000)
+    # m11.B_params, m11.phi = label11['B'], np.array(label11['phi'])
+    # evaluate(m11, y11, label11, fit_B_phi=False)
+
+    # print('\n\nProcessing test case 12...')
+    # y12, label12 = gen_ex9(num_ex=2000, seed=100)
+    # m12 = EuclideanGaussianHMM(S=2, p=2, max_lag=1)
+    # evaluate(m12, y12, label12, fit_B_phi=True)
 
 
 if __name__ == "__main__":
