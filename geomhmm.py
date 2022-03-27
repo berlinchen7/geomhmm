@@ -4,7 +4,6 @@ import scipy
 
 from sklearn.base import BaseEstimator
 from sklearn.mixture import GaussianMixture
-import cvxpy as cp
 from cvxopt import matrix, solvers
 
 import torch
@@ -165,6 +164,7 @@ class _BaseGaussianHMM(BaseEstimator):
         Note: Deprecated, as cvxpy is unstable in our use case. See
         https://stackoverflow.com/questions/59843953/receiving-none-as-result-in-cvxpy-problem-solver
         """
+        import cvxpy as cp
 
         C_hat = np.empty([self.max_lag+1, self.S, self.S])
 
