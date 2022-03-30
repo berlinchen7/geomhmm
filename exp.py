@@ -266,7 +266,7 @@ def main():
 
     if args.mode == 'Salem2021':
         run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
-    if args.mode == 'Tupker2021':
+    elif args.mode == 'Tupker2021':
         run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
     else:
         raise ValueError('The experiment task {} is invalid. Exiting.'.format(args.mode))
