@@ -7,7 +7,7 @@ import itertools
 import argparse
 
 
-def gen_chain_Salem2021(num_ex=1000, seed=2):
+def gen_chain_Salem2021(num_ex=10000, seed=2):
     np.random.seed(seed)
 
     mean1 = torch.tensor([0, 0])
@@ -50,7 +50,7 @@ def gen_chain_Salem2021(num_ex=1000, seed=2):
         else:
             y.append(y3.pop())
 
-    return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
+    return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
 def gen_chain_Tupker2021(num_ex=10000, seed=2):
@@ -95,7 +95,7 @@ def gen_chain_Tupker2021(num_ex=10000, seed=2):
         else:
             y.append(y3.pop())
 
-    return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
+    return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
 
@@ -124,7 +124,7 @@ def permute_matrix(matrix, permutation):
         ret[i, :] = ret[i, permutation]
     return ret
 
-def run_Salem2021_exp(given_true=args.givenTrue, output_name=args.out, output_path='./'):
+def run_Salem2021_exp(given_true=False, output_name='output', output_path='./'):
 
     num_runs = 20
 
@@ -139,7 +139,11 @@ def run_Salem2021_exp(given_true=args.givenTrue, output_name=args.out, output_pa
     ret_runtime = np.zeros(num_runs)
 
     for it in range(num_runs):
-        y, label = gen_chain_Salem2021(num_ex=10000, seed=it+3)
+        x, y, label = gen_chain_Salem2021(num_ex=10000, seed=it+3)
+        y_np = np.array([np.array(yi) for yi in y])
+        np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
+        np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
+
         m = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=500)
         if given_true:
             m.B_params, m.phi = label['B'], np.array(label['phi'])
@@ -175,12 +179,12 @@ def run_Salem2021_exp(given_true=args.givenTrue, output_name=args.out, output_pa
     print('Mean transition matrix is {}'.format(mean_trans_mat/num_runs))
     print('Mean runtime is {}'.format(mean_runtime/num_runs))
 
-    np.save(output_path + output_name + '_centroids.npy', ret_centroids)
-    np.save(output_path + output_name + '_disp.npy', ret_dispersions)
-    np.save(output_path + output_name + '_trans_mat.npy', ret_trans_mat)
-    np.save(output_path + output_name + '_runtime.npy', ret_runtime)
+    np.save(output_path + '/' + output_name + '_centroids.npy', ret_centroids)
+    np.save(output_path + '/' + output_name + '_disp.npy', ret_dispersions)
+    np.save(output_path + '/' + output_name + '_trans_mat.npy', ret_trans_mat)
+    np.save(output_path + '/' + output_name + '_runtime.npy', ret_runtime)
 
-def run_Tupker2021_exp(given_true, output_name, output_path='./'):
+def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./'):
 
     num_runs = 20
 
@@ -196,7 +200,11 @@ def run_Tupker2021_exp(given_true, output_name, output_path='./'):
     ret_runtime = np.zeros(num_runs)
 
     for it in range(num_runs):
-        y, label = gen_chain_Tupker2021(num_ex=10000, seed=it+3)
+        x, y, label = gen_chain_Tupker2021(num_ex=10000, seed=it+3)
+        y_np = np.array([np.array(yi) for yi in y])
+        np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
+        np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
+
         m = PoincareDiskGaussianHMM(S=3, max_lag=5, num_samples_K=500)
         if given_true:
             m.B_params, m.phi = label['B'], np.array(label['phi'])
@@ -234,11 +242,11 @@ def run_Tupker2021_exp(given_true, output_name, output_path='./'):
     print('Transition RMSE is {}'.format(np.linalg.norm(ret_trans_mat_frob_diff) / np.sqrt(num_runs)))
     print('Mean runtime is {}'.format(mean_runtime/num_runs))
 
-    np.save(output_path + output_name + '_centroids.npy', ret_centroids)
-    np.save(output_path + output_name + '_disp.npy', ret_dispersions)
-    np.save(output_path + output_name + '_trans_mat.npy', ret_trans_mat)
-    np.save(output_path + output_name + '_trans_mat_frob_diff.npy', ret_trans_mat_frob_diff)
-    np.save(output_path + output_name + '_runtime.npy', ret_runtime)
+    np.save(output_path + '/' + output_name + '_centroids.npy', ret_centroids)
+    np.save(output_path + '/' + output_name + '_disp.npy', ret_dispersions)
+    np.save(output_path + '/' + output_name + '_trans_mat.npy', ret_trans_mat)
+    np.save(output_path + '/' + output_name + '_trans_mat_frob_diff.npy', ret_trans_mat_frob_diff)
+    np.save(output_path + '/' + output_name + '_runtime.npy', ret_runtime)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -247,19 +255,21 @@ def parse_args():
     parser.add_argument('--givenTrue', type=bool,
                         help='Whether to train emission probability and stationary distribution.',
                         default=False)
-    parser.add_argument('--out', type=str,
+    parser.add_argument('--oname', type=str,
                         help='Name of output npy files.', default='output')
+    parser.add_argument('--opath', type=str,
+                        help='Name of output npy files.', default='./')
     return parser.parse_args()
 
 def main():
     args = parse_args()
 
     if args.mode == 'Salem2021':
-        run_Salem2021_exp(given_true=args.givenTrue, output_name=args.out)
+        run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
     if args.mode == 'Tupker2021':
-        run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.out)
+        run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
     else:
-        raise ValueError('The experiment task {} is invalid. Exiting.'.format(config['task'] ))
+        raise ValueError('The experiment task {} is invalid. Exiting.'.format(args.mode))
 
 if __name__ == "__main__":
     main()
