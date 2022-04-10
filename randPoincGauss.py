@@ -1,75 +1,79 @@
 import numpy as np
-import torch, math
-import geoopt
+import math
+import utils
+import torch
 
-def mhsample(start, nsamples, pdf, proprnd):                                                      
-    """                                                                                                    
-    Metropolis-Hastings with random sampler.                                                         
-                                                                                                           
-    """                                                                                                    
-    x = start                                                                                              
-    accepted = []                                                                                          
-    rejected = []                                                                                          
-    while len(accepted) <= nsamples:                                                                       
-        x_ =  proprnd(x)                                                                                   
-        A = min(1, pdf(x_)/(pdf(x)))                                         
-        u = np.random.uniform(low=0.0, high=1.0)                                                           
-        if u <= A:                                                                                         
-            x = x_                                                                                         
-            accepted.append(x)                                                                             
-        else:                                                                                              
-            rejected.append(x)                                                                             
-    return np.array(accepted), np.array(rejected), x
 
-def compute_dist(X, Y):
-    """Compute the hyperbolic distance on the Poincare Disk, using the geoopt package.
+def generate_r(sigma, num_samples, rng):
+    ''' Generate the radius component of random samples.
+
+    For more details, see, e.g., equation (24) of Said et al., 2017.
+    '''
+    Z_sigma2 = (np.pi*.5)**.5 * sigma*np.exp(sigma**2 * .5)*math.erf(sigma/(2**.5))
+
+    delta = sigma
+    pdf = lambda x: (np.exp(-.5*np.square(x)/(sigma**2))/Z_sigma2) * np.sinh(x)
+    proppdf = lambda x, y: utils.unifpdf(y - x, -delta, delta)
+    proprnd = lambda x: x + rng.random()*2*delta - delta
+
+    r, _ = utils.mhsample_is(1, num_samples, pdf, proppdf, proprnd, rng)
+    return r
+
+def generate_z(sigma, centroid, num_samples, rng):
+    ''' Generate Gaussian samples on the hyperbolic upper half plane.
+    Returns a numpy array of complex values.
+    '''
+    r = generate_r(sigma, num_samples, rng)
+    theta = 2*np.pi*rng.random(num_samples)
+    z = np.cos(theta*.5)*np.exp(r*.5)*1j + np.sin(theta*.5)*np.exp(-r*.5)
+    z /= (-np.sin(theta*.5)*np.exp(r*.5)*1j + np.cos(theta*.5)*np.exp(-r*.5))
+
+    return centroid[0] + centroid[1]*z
+
+def randPoincGauss(Ybar, sigma, N, rng=None, omit=50):
+    """ Generate N samples from a Poincare-disk-valued Gaussian with mean Ybar and dispersion gamma.
     """
-    X, Y = torch.tensor(X), torch.tensor(Y)
-    PD = geoopt.PoincareBall()
-    return PD.dist(x=X, y=Y).item()
+    if rng is None:
+        rng = np.random.default_rng()
 
-def compute_norm_factor(sigma):
-    """
-    Formula taken from:
-    S. Said, L. Bombrun, and Y. Berthoumieu. New riemannian priors on the univariate normal model."""
-    const = (2*math.pi)*((math.pi*.5)**.5)
-    exp = math.exp(.5*(sigma**2))
-    erf = math.erf(sigma/(2**(.5)))
-    return const*sigma*exp*erf
+    # Convert the centroid to an element of the hyperplane:
+    Ybar_hp = Ybar[0] + Ybar[1]*1j
+    Ybar_hp = (-1j*Ybar_hp - 1j)/(Ybar_hp - 1)
+    Ybar_hp = np.array([Ybar_hp.real, Ybar_hp.imag])
 
-def compute_PDGauss_pdf(x, centroid, sigma):
-    norm_factor = compute_norm_factor(sigma)
+    # Generate N hyperbolic halfplane valued Gaussian samples:
+    zs = generate_z(sigma, Ybar_hp, N + omit, rng)
+    zs = zs[omit:]
 
-    dist = compute_dist(x, centroid)
+    # Transform them into Poincare disk valued samples:
+    zs = (zs - 1j) / (zs + 1j)
 
-    return math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor
+    # Transform to a list of torch tensors
+    ret = np.stack((zs.real, zs.imag), axis=-1)
+    return [torch.tensor(x) for x in ret]
 
+def plot(samples):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
 
-def randPoincGauss(Ybar, sigma, N, seed=1, omit=50):
-    """ Generate N samples from a Gaussian SPD manifold with mean Ybar and dispersion gamma.
+    ax = sns.scatterplot(x=samples[:,0], y=samples[:,1],marker='x', s=20)
+    circle = plt.Circle(xy=(0, 0), radius=1, color='red', fill=False)
+    ax.add_patch(circle)
+    ax.set(xlim=(-1, 1))
+    ax.set(ylim=(-1, 1));
+    ax.set_aspect('equal')
+    plt.show()
 
-    Use MCMC with Random Walk, along with rejection sampling.
-    """
-    np.random.seed(seed)
-
-    Ybar = np.array(Ybar)
-    proprnd = lambda x: np.random.multivariate_normal(x, np.eye(2)*.001)
-    pdf = lambda x: compute_PDGauss_pdf(x, Ybar, sigma)
-
-    ret = []
-    curr_start = Ybar
-    while len(ret) < N + omit:
-        curr_samples, _, new_start = mhsample(curr_start, N + omit, pdf, proprnd)
-        for curr_sample in curr_samples:
-            # Rejection sampling: throw away if not in the unit circle:
-            if np.linalg.norm(curr_sample) < 1:
-                ret.append(torch.tensor(curr_sample))
-        curr_start = new_start
-    return ret[omit:omit + N]
-
+def tensor_list_to_numpy(tensor_list):
+    ret = [np.array(t) for t in tensor_list]
+    return np.array(ret)
 
 def main():
-    print(randPoincGauss(torch.tensor([.2, .4]), .01, 10))
+    N = 10000
+    centroid = np.array([0, 0])
+    disp = .1
+    samples = randPoincGauss(centroid, disp, N)
+    plot(tensor_list_to_numpy(samples))
 
 if __name__ == "__main__":
     main()

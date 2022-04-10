@@ -1,27 +1,8 @@
 import numpy as np
 import math
+import utils
 # Somehow one cannot just do import scipy and call scipy.linalg.*
 import scipy.linalg as la 
-
-def mhsample(start, nsamples, pdf, proppdf, proprnd):
-    """
-    Metropolis-Hastings with independence sampler.
-
-    """
-    x = start
-    accepted = []
-    rejected = []   
-    while len(accepted) <= nsamples:
-        x_ =  proprnd(x)    
-        A = min(1, pdf(x_)*proppdf(x, x_)/(pdf(x)*proppdf(x_, x)))
-        u = np.random.uniform(low=0.0, high=1.0)
-        if u <= A:
-            x = x_
-            accepted.append(x)
-        else:
-            rejected.append(x)            
-                
-    return np.array(accepted), np.array(rejected)
 
 
 def prod_sinh(x, d):
@@ -50,7 +31,7 @@ def generate_ri(gamma, d, N):
     def proppdf(x, y): return unifpdf_dim_p(y-x, -delta, delta)
     def proprnd(x): return x + np.random.rand(d)*2*delta - delta
 
-    r, _ = mhsample(np.random.rand(d), N+X, pdf, proppdf, proprnd)
+    r, _ = utils.mhsample_is(np.random.rand(d), N+X, pdf, proppdf, proprnd)
     return r[X:] # Chop off the ommited samples.
 
 def randSPDGauss(Ybar, gamma, N, seed=1):
