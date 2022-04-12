@@ -62,8 +62,8 @@ def main():
     N = 10000
 
     centroid1 = np.array([0, 0])
-    centroid2 = np.array([0.82, 0.29])
-    centroid3 = np.array([0.82, -0.29])
+    centroid2 = np.array([0.29, 0.82])
+    centroid3 = np.array([-0.29, 0.82])
 
     disp1 = .1
     disp2 = .4
@@ -72,6 +72,10 @@ def main():
     samples = randPoincGauss(centroid1, disp1, N)
     samples += randPoincGauss(centroid2, disp2, N)
     samples += randPoincGauss(centroid3, disp3, N)
+
+    # samples = list(np.random.multivariate_normal(centroid1, np.eye(2)*disp1, N))
+    # samples += list(np.random.multivariate_normal(centroid2, np.eye(2)*disp2, N))
+    # samples += list(np.random.multivariate_normal(centroid3, np.eye(2)*disp3, N))
 
     plot(tensor_list_to_numpy(samples))
 
