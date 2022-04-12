@@ -23,9 +23,9 @@ def mhsample_rs(start, nsamples, pdf, proprnd, rng=None):
             rejected.append(x)                                                                             
     return np.array(accepted), np.array(rejected), x
 
-def mhsample_is(start, nsamples, pdf, proppdf, proprnd, rng=None, max_tries=1e10):
+def mhsample(start, nsamples, pdf, proppdf, proprnd, rng=None, max_tries=1e10):
     """
-    Metropolis-Hastings with independence sampler.
+    Metropolis-Hastings sampler.
 
     """
     if rng is None:

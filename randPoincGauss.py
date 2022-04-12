@@ -3,54 +3,44 @@ import math
 import utils
 import torch
 
-
 def generate_r(sigma, num_samples, rng):
     ''' Generate the radius component of random samples.
 
+    p(r) is proportional to exp(-r^2/(2*sigma^2))sinh(r), for r > 0.
     For more details, see, e.g., equation (24) of Said et al., 2017.
     '''
-    Z_sigma2 = (np.pi*.5)**.5 * sigma*np.exp(sigma**2 * .5)*math.erf(sigma/(2**.5))
+    k = 1 # df of the chi-square dist., which we use for the proposal dist
+    pdf = lambda x: np.exp(-.5*np.square(x)/(sigma**2)) * np.sinh(x)
+    proprnd = lambda x: rng.chisquare(k)
+    proppdf = lambda x, y: x**(.5*k - 1)*np.exp(-.5*x) / (2**(.5*k)*math.gamma(.5*k))
 
-    delta = sigma
-    pdf = lambda x: (np.exp(-.5*np.square(x)/(sigma**2))/Z_sigma2) * np.sinh(x)
-    proppdf = lambda x, y: utils.unifpdf(y - x, -delta, delta)
-    proprnd = lambda x: x + rng.random()*2*delta - delta
-
-    r, _ = utils.mhsample_is(1, num_samples, pdf, proppdf, proprnd, rng)
+    r, _ = utils.mhsample(1, num_samples, pdf, proppdf, proprnd, rng)
     return r
 
-def generate_z(sigma, centroid, num_samples, rng):
-    ''' Generate Gaussian samples on the hyperbolic upper half plane.
-    Returns a numpy array of complex values.
-    '''
-    r = generate_r(sigma, num_samples, rng)
-    theta = 2*np.pi*rng.random(num_samples)
-    z = np.cos(theta*.5)*np.exp(r*.5)*1j + np.sin(theta*.5)*np.exp(-r*.5)
-    z /= (-np.sin(theta*.5)*np.exp(r*.5)*1j + np.cos(theta*.5)*np.exp(-r*.5))
 
-    return centroid[0] + centroid[1]*z
-
-def randPoincGauss(Ybar, sigma, N, rng=None, omit=50):
-    """ Generate N samples from a Poincare-disk-valued Gaussian with mean Ybar and dispersion gamma.
-    """
+def randPoincGauss(Ybar, sigma, N, rng=None, omit=100):
+    """ Generate N samples from a Poincare-disk-valued Gaussian with mean Ybar and dispersion gamma."""
     if rng is None:
         rng = np.random.default_rng()
 
-    # Convert the centroid to an element of the hyperplane:
-    Ybar_hp = Ybar[0] + Ybar[1]*1j
-    Ybar_hp = (-1j*Ybar_hp - 1j)/(Ybar_hp - 1)
-    Ybar_hp = np.array([Ybar_hp.real, Ybar_hp.imag])
+    Ybar = np.array(Ybar) # Convert to numpy array in case Ybar is a torch tensor
 
-    # Generate N hyperbolic halfplane valued Gaussian samples:
-    zs = generate_z(sigma, Ybar_hp, N + omit, rng)
-    zs = zs[omit:]
+    # Sample the polar coordinate representation of Poincare Disk centered at the origin:    
+    r = generate_r(sigma, N, rng)   
+    rho = (np.exp(r) - 1) / (np.exp(r) + 1) # Convert intrinsic radius to Poincare model representations   
+    theta = 2*np.pi*rng.random(N)
 
-    # Transform them into Poincare disk valued samples:
-    zs = (zs - 1j) / (zs + 1j)
+    # Combine via the polar equation:
+    z = rho*np.cos(theta) + 1j*rho*np.sin(theta)
+
+    # Translate to mean Ybar:
+    c = Ybar[0] + 1j*Ybar[1]
+    ret = (z + c) / (1 + np.conjugate(c)*z)
 
     # Transform to a list of torch tensors
-    ret = np.stack((zs.real, zs.imag), axis=-1)
+    ret = np.stack((ret.real, ret.imag), axis=-1)
     return [torch.tensor(x) for x in ret]
+
 
 def plot(samples):
     import seaborn as sns
@@ -70,9 +60,19 @@ def tensor_list_to_numpy(tensor_list):
 
 def main():
     N = 10000
-    centroid = np.array([0, 0])
-    disp = .1
-    samples = randPoincGauss(centroid, disp, N)
+
+    centroid1 = np.array([0, 0])
+    centroid2 = np.array([0.82, 0.29])
+    centroid3 = np.array([0.82, -0.29])
+
+    disp1 = .1
+    disp2 = .4
+    disp3 = .4
+
+    samples = randPoincGauss(centroid1, disp1, N)
+    samples += randPoincGauss(centroid2, disp2, N)
+    samples += randPoincGauss(centroid3, disp3, N)
+
     plot(tensor_list_to_numpy(samples))
 
 if __name__ == "__main__":

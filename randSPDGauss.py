@@ -31,7 +31,7 @@ def generate_ri(gamma, d, N):
     def proppdf(x, y): return unifpdf_dim_p(y-x, -delta, delta)
     def proprnd(x): return x + np.random.rand(d)*2*delta - delta
 
-    r, _ = utils.mhsample_is(np.random.rand(d), N+X, pdf, proppdf, proprnd)
+    r, _ = utils.mhsample(np.random.rand(d), N+X, pdf, proppdf, proprnd)
     return r[X:] # Chop off the ommited samples.
 
 def randSPDGauss(Ybar, gamma, N, seed=1):
