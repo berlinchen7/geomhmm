@@ -5,18 +5,20 @@ import numpy as np
 import time
 import itertools
 import argparse
+import shutil, os, json
 
 
-def gen_chain_Salem2021(num_ex=10000, seed=2):
-    np.random.seed(seed)
+def gen_chain_Salem2021(num_ex=10000, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
 
     mean1 = torch.tensor([0, 0])
     disp1 = .1
 
-    mean2 = torch.tensor([.82, .29])
+    mean2 = torch.tensor([.29, .82])
     disp2 = .4
 
-    mean3 = torch.tensor([.82, -.29])
+    mean3 = torch.tensor([-.29, .82,])
     disp3 = .4
 
 
@@ -28,18 +30,18 @@ def gen_chain_Salem2021(num_ex=10000, seed=2):
     # Construct the Markov chain:
     x = []
     init_dist = [1, 0, 0]
-    curr_state = np.random.multinomial(1, init_dist, size=1)
+    curr_state = rng.multinomial(1, init_dist, size=1)
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = np.random.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, A[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
     # Construct the observations:
-    y1 = randPoincGauss.randPoincGauss(mean1, disp1, num_ex)
-    y2 = randPoincGauss.randPoincGauss(mean2, disp2, num_ex)
-    y3 = randPoincGauss.randPoincGauss(mean3, disp3, num_ex)
+    y1 = randPoincGauss.randPoincGauss(mean1, disp1, num_ex, rng=rng)
+    y2 = randPoincGauss.randPoincGauss(mean2, disp2, num_ex, rng=rng)
+    y3 = randPoincGauss.randPoincGauss(mean3, disp3, num_ex, rng=rng)
 
     y = []
     for xi in x:
@@ -53,16 +55,17 @@ def gen_chain_Salem2021(num_ex=10000, seed=2):
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
-def gen_chain_Tupker2021(num_ex=10000, seed=2):
-    np.random.seed(seed)
+def gen_chain_Tupker2021(num_ex=10000, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
 
     mean1 = torch.tensor([0, 0])
     disp1 = .2
 
-    mean2 = torch.tensor([.82, .29])
+    mean2 = torch.tensor([.29, .82])
     disp2 = 1
 
-    mean3 = torch.tensor([.82, -.29])
+    mean3 = torch.tensor([-.29, .82])
     disp3 = 1
 
     A = np.array([[.4, .3, .3],
@@ -73,18 +76,18 @@ def gen_chain_Tupker2021(num_ex=10000, seed=2):
     # Construct the Markov chain:
     x = []
     init_dist = [1, 0, 0]
-    curr_state = np.random.multinomial(1, init_dist, size=1)
+    curr_state = rng.multinomial(1, init_dist, size=1)
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = np.random.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, A[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
     # Construct the observations:
-    y1 = randPoincGauss.randPoincGauss(mean1, disp1, num_ex)
-    y2 = randPoincGauss.randPoincGauss(mean2, disp2, num_ex)
-    y3 = randPoincGauss.randPoincGauss(mean3, disp3, num_ex)
+    y1 = randPoincGauss.randPoincGauss(mean1, disp1, num_ex, rng=rng)
+    y2 = randPoincGauss.randPoincGauss(mean2, disp2, num_ex, rng=rng)
+    y3 = randPoincGauss.randPoincGauss(mean3, disp3, num_ex, rng=rng)
 
     y = []
     for xi in x:
@@ -124,9 +127,8 @@ def permute_matrix(matrix, permutation):
         ret[i, :] = ret[i, permutation]
     return ret
 
-def run_Salem2021_exp(given_true=False, output_name='output', output_path='./'):
-
-    num_runs = 20
+def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
+                      max_lag=3, num_samples_K=500, num_runs=20):
 
     mean_centroids = np.zeros((3, 2))
     mean_dispersions = np.zeros(3)
@@ -139,12 +141,12 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./'):
     ret_runtime = np.zeros(num_runs)
 
     for it in range(num_runs):
-        x, y, label = gen_chain_Salem2021(num_ex=10000, seed=it+3)
+        x, y, label = gen_chain_Salem2021(num_ex=10000)
         y_np = np.array([np.array(yi) for yi in y])
         np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
         np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
 
-        m = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=500)
+        m = PoincareDiskGaussianHMM(S=3, max_lag=max_lag, num_samples_K=num_samples_K)
         if given_true:
             m.B_params, m.phi = label['B'], np.array(label['phi'])
         start = time.time()
@@ -184,6 +186,9 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./'):
     np.save(output_path + '/' + output_name + '_trans_mat.npy', ret_trans_mat)
     np.save(output_path + '/' + output_name + '_runtime.npy', ret_runtime)
 
+    mean_trans_mat = mean_trans_mat/num_runs
+    return np.linalg.norm(mean_trans_mat - true_trans_mat)
+
 def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./'):
 
     num_runs = 20
@@ -200,7 +205,7 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./')
     ret_runtime = np.zeros(num_runs)
 
     for it in range(num_runs):
-        x, y, label = gen_chain_Tupker2021(num_ex=10000, seed=it+3)
+        x, y, label = gen_chain_Tupker2021(num_ex=10000)
         y_np = np.array([np.array(yi) for yi in y])
         np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
         np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
@@ -248,17 +253,61 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./')
     np.save(output_path + '/' + output_name + '_trans_mat_frob_diff.npy', ret_trans_mat_frob_diff)
     np.save(output_path + '/' + output_name + '_runtime.npy', ret_runtime)
 
+def train_evaluate(trial_index, output_path, output_name, parameters):
+    output_path = output_path + '/' + str(trial_index)
+    os.makedirs(output_path, exist_ok=True)
+
+    return run_Salem2021_exp(given_true=False, output_name=output_name, output_path=output_path,
+                      max_lag=parameters['max_lag'], num_samples_K=parameters['num_samples_K'], num_runs=10)
+
+def tune_hyperparams(input_name, input_path, output_name, output_path, total_trials):
+    from ax.service.ax_client import AxClient
+
+    input_file = input_path + '/' + input_name
+    os.makedirs(output_path, exist_ok=True)
+    shutil.copy(input_file, output_path + '/hyperparams.json')
+    parameters = json.load(open(input_file))
+
+    # Set up client to manage hyperparameter tuning:
+    ax_client = AxClient()
+    ax_client.create_experiment(
+        name = "detectron2_hyperparam_tuning",
+        parameters = parameters,
+        objective_name = 'Frob(A-Ahat)'
+    )
+
+    for i in range(total_trials):
+        parameters, trial_index = ax_client.get_next_trial()
+        try:
+            result = ax_client.complete_trial(trial_index=trial_index, raw_data=train_evaluate(trial_index, output_path, output_name, parameters))
+        except:
+            # Should any optimization iterations fail during evaluation, 
+            # log_trial_failure will ensure that the same trial is not proposed again
+            ax_client.log_trial_failure(trial_index=trial_index)
+        # Save current trial progress:
+        ax_client.save_to_json_file(output_path + '/ax_client_checkpoint' + str(i) + '.json')
+
+
+
 def parse_args():
+    # TODO: instead of CLI, use yaml config files instead.
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str,
                         help='Mode of the experiment.')
     parser.add_argument('--givenTrue', type=bool,
                         help='Whether to train emission probability and stationary distribution.',
                         default=False)
+    parser.add_argument('--iname', type=str,
+                        help='Name of input file.', default='input')
+    parser.add_argument('--ipath', type=str,
+                        help='Path of input.', default='./in')
     parser.add_argument('--oname', type=str,
-                        help='Name of output npy files.', default='output')
+                        help='Name of output file.', default='output')
     parser.add_argument('--opath', type=str,
-                        help='Name of output npy files.', default='./')
+                        help='Path of output.', default='./out')
+    parser.add_argument('--totT', type=int,
+                        help='Maximum num of tune_hyperparams trials.', default=30)
+
     return parser.parse_args()
 
 def main():
@@ -268,6 +317,9 @@ def main():
         run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
     elif args.mode == 'Tupker2021':
         run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
+    elif args.mode == 'hyp_tuning':
+        tune_hyperparams(input_name=args.iname, input_path=args.ipath,
+                         output_path=args.opath, output_name=args.oname, total_trials=args.totT)
     else:
         raise ValueError('The experiment task {} is invalid. Exiting.'.format(args.mode))
 

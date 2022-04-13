@@ -1,0 +1,5 @@
+
+[
+    {"name": "max_lag", "type": "range", "bounds": [1, 20], "log_scale": false},
+    {"name": "num_samples_K", "type": "range", "bounds": [500, 20000], "log_scale": true}
+    ]
