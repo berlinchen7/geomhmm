@@ -273,7 +273,8 @@ def tune_hyperparams(input_name, input_path, output_name, output_path, total_tri
     ax_client.create_experiment(
         name = "detectron2_hyperparam_tuning",
         parameters = parameters,
-        objective_name = 'Frob(A-Ahat)'
+        objective_name = 'Frob(A-Ahat)',
+        minimize=True
     )
 
     for i in range(total_trials):
