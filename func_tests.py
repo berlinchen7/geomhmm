@@ -421,8 +421,8 @@ def main():
     # evaluate(m7, y7, label7, fit_B_phi=True)
 
     print('\n\nProcessing test case 8...')
-    y8, label8 = gen_ex7(num_ex=4000, seed=10)
-    m8 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=100)
+    y8, label8 = gen_ex7(num_ex=1000, seed=10)
+    m8 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=10000)
     evaluate(m8, y8, label8, fit_B_phi=True)
 
 

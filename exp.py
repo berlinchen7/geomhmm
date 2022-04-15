@@ -6,7 +6,16 @@ import time
 import itertools
 import argparse
 import shutil, os, json
+import logging
 
+logger = logging.getLogger(__name__) 
+logger.setLevel(logging.INFO)
+
+# Comment out below if you don't want to see progress outputs:
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler) 
 
 def gen_chain_Salem2021(num_ex=10000, rng=None):
     if rng is None:
@@ -128,7 +137,16 @@ def permute_matrix(matrix, permutation):
     return ret
 
 def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
-                      max_lag=3, num_samples_K=500, num_runs=20):
+                      max_lag=3, num_samples_K=500, num_runs=20, seed=None):
+
+    rng = np.random.default_rng(seed)
+
+    os.makedirs(output_path, exist_ok=True)
+    file_handler = logging.FileHandler(output_path + '/' + output_name + '.log')
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
     mean_centroids = np.zeros((3, 2))
     mean_dispersions = np.zeros(3)
@@ -141,12 +159,12 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
     ret_runtime = np.zeros(num_runs)
 
     for it in range(num_runs):
-        x, y, label = gen_chain_Salem2021(num_ex=10000)
+        x, y, label = gen_chain_Salem2021(num_ex=10000, rng=rng)
         y_np = np.array([np.array(yi) for yi in y])
         np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
         np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
 
-        m = PoincareDiskGaussianHMM(S=3, max_lag=max_lag, num_samples_K=num_samples_K)
+        m = PoincareDiskGaussianHMM(S=3, max_lag=max_lag, num_samples_K=num_samples_K, rng=rng)
         if given_true:
             m.B_params, m.phi = label['B'], np.array(label['phi'])
         start = time.time()
@@ -176,22 +194,42 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
         mean_trans_mat += pred_trans_mat
         mean_runtime += run_time
 
-    print('Mean centroid are {}'.format(mean_centroids/num_runs))
-    print('Mean dispersions are {}'.format(mean_dispersions/num_runs))
-    print('Mean transition matrix is {}'.format(mean_trans_mat/num_runs))
-    print('Mean runtime is {}'.format(mean_runtime/num_runs))
+    mean_centroids = mean_centroids/num_runs
+    mean_dispersions = mean_dispersions/num_runs
+    mean_trans_mat = mean_trans_mat/num_runs
+    mean_runtime = mean_runtime/num_runs
+
+
+    logger.info('Mean centroid are {}'.format(mean_centroids))
+    c_diff = np.zeros(3)
+    for i in range(3):
+        c_diff[i] = m.compute_dist(torch.tensor(mean_centroids[i]), torch.tensor(true_centroids[i]))
+    logger.info('sqrt(sum_i d(y-y_i_hat)^2) is {}'.format(np.linalg.norm(c_diff)))
+
+    logger.info('Mean dispersions are {}'.format(mean_dispersions))
+    logger.info('2norm(sigma-sigma_hat) is {}'.format(np.linalg.norm(mean_dispersions - true_disp)))
+    logger.info('Mean transition matrix is {}'.format(mean_trans_mat))
+    logger.info('Frob(A-Ahat) is {}'.format(np.linalg.norm(mean_trans_mat - true_trans_mat)))
+    logger.info('Mean runtime is {}'.format(mean_runtime))
 
     np.save(output_path + '/' + output_name + '_centroids.npy', ret_centroids)
     np.save(output_path + '/' + output_name + '_disp.npy', ret_dispersions)
     np.save(output_path + '/' + output_name + '_trans_mat.npy', ret_trans_mat)
     np.save(output_path + '/' + output_name + '_runtime.npy', ret_runtime)
 
-    mean_trans_mat = mean_trans_mat/num_runs
     return np.linalg.norm(mean_trans_mat - true_trans_mat)
 
-def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./'):
+def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./',
+                       num_runs = 20, seed=None):
 
-    num_runs = 20
+    rng = np.random.default_rng(seed)
+
+    os.makedirs(output_path, exist_ok=True)
+    file_handler = logging.FileHandler(output_path + '/' + output_name + '.log')
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
     mean_centroids = np.zeros((3, 2))
     mean_dispersions = np.zeros(3)
@@ -210,7 +248,7 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./')
         np.save(output_path + '/' + output_name + '_inp_x{}.npy'.format(it), np.array(x))
         np.save(output_path + '/' + output_name + '_inp_y{}.npy'.format(it), y_np)
 
-        m = PoincareDiskGaussianHMM(S=3, max_lag=5, num_samples_K=500)
+        m = PoincareDiskGaussianHMM(S=3, max_lag=5, num_samples_K=10000)
         if given_true:
             m.B_params, m.phi = label['B'], np.array(label['phi'])
         start = time.time()
@@ -241,11 +279,11 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./')
         mean_trans_mat += pred_trans_mat
         mean_runtime += run_time
 
-    print('Mean centroid are {}'.format(mean_centroids/num_runs))
-    print('Mean dispersions are {}'.format(mean_dispersions/num_runs))
-    print('Mean transition matrix is {}'.format(mean_trans_mat/num_runs))
-    print('Transition RMSE is {}'.format(np.linalg.norm(ret_trans_mat_frob_diff) / np.sqrt(num_runs)))
-    print('Mean runtime is {}'.format(mean_runtime/num_runs))
+    logger.info('Mean centroid are {}'.format(mean_centroids/num_runs))
+    logger.info('Mean dispersions are {}'.format(mean_dispersions/num_runs))
+    logger.info('Mean transition matrix is {}'.format(mean_trans_mat/num_runs))
+    logger.info('Transition RMSE is {}'.format(np.linalg.norm(ret_trans_mat_frob_diff) / np.sqrt(num_runs)))
+    logger.info('Mean runtime is {}'.format(mean_runtime/num_runs))
 
     np.save(output_path + '/' + output_name + '_centroids.npy', ret_centroids)
     np.save(output_path + '/' + output_name + '_disp.npy', ret_dispersions)
@@ -258,7 +296,7 @@ def train_evaluate(trial_index, output_path, output_name, parameters):
     os.makedirs(output_path, exist_ok=True)
 
     return run_Salem2021_exp(given_true=False, output_name=output_name, output_path=output_path,
-                      max_lag=parameters['max_lag'], num_samples_K=parameters['num_samples_K'], num_runs=10)
+                      max_lag=parameters['max_lag'], num_samples_K=parameters['num_samples_K'], num_runs=20)
 
 def tune_hyperparams(input_name, input_path, output_name, output_path, total_trials):
     from ax.service.ax_client import AxClient
@@ -308,6 +346,8 @@ def parse_args():
                         help='Path of output.', default='./out')
     parser.add_argument('--totT', type=int,
                         help='Maximum num of tune_hyperparams trials.', default=30)
+    parser.add_argument('--seed', type=int,
+                        help='Seed for the random number generator.', default=2022)
 
     return parser.parse_args()
 
@@ -315,9 +355,9 @@ def main():
     args = parse_args()
 
     if args.mode == 'Salem2021':
-        run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
+        run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath, seed=args.seed)
     elif args.mode == 'Tupker2021':
-        run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath)
+        run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath, seed=args.seed)
     elif args.mode == 'hyp_tuning':
         tune_hyperparams(input_name=args.iname, input_path=args.ipath,
                          output_path=args.opath, output_name=args.oname, total_trials=args.totT)

@@ -19,6 +19,7 @@ Here is an example on how to use the code:
 ```python
 from geomhmm import PoincareDiskGaussianHMM
 from exp import gen_chain_Tupker2021
+
 y, _ = gen_chain_Tupker2021() # Generate an example Poincare-disk-valued HMM
 m = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=500) # Initialize the learner
 m.partial_fit(y) # Learning step
@@ -31,7 +32,7 @@ print(m.B_params, m.phi, m.A_hat) # Print the current estimates
 * The files `randSPDGauss.py`/`randPoincGauss.py` contain the code to sample a Gaussian distribution of SPD manifolds / Poincare Disk.
 * The file `func_test.py` contains a suite of examples used to test the implementation.
 * The file `exp.py` runs experiments that replicate the set-up used by Salem et al., 2021 and by Tupker et al., 2021.
-    * For example, you can run `python exp.py --mode Salem2021 --givenTrue False` to replicate the set-up used by Salem et al., 2021 (the `givenTrue` flag controls whether the we want the learner to learn the emission probabilities/stationary distribution as well; `False` means we do want to learn those variables).
+    * For example, you can run `python exp.py --mode Salem2021 --oname output --opath ./out --seed=202 --givenTrue False` to replicate the set-up used by Salem et al., 2021 (the `givenTrue` flag controls whether the we want the learner to learn the emission probabilities/stationary distribution as well; `False` means we do want to learn those variables).
 
 ## Acknowledgement
 The algorithm was developed by Berlin Chen and Dr. Cyrus Mostajeran at the University of Cambridge, and the code is still at the initial stage of development. Any feedback is appreciated.

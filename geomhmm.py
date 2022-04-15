@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import scipy
+import logging
 
 from sklearn.base import BaseEstimator
 from sklearn.mixture import GaussianMixture
@@ -12,13 +13,24 @@ import geoopt
 import randSPDGauss
 import randPoincGauss
 
+logger = logging.getLogger(__name__) 
+logger.setLevel(logging.INFO)
+
+# Comment out below if you don't want to see progress outputs:
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler) 
+
 class _BaseGaussianHMM(BaseEstimator):
     """Base class for the geometric HMM with Gaussian emission probabilities."""
     def __init__(self, 
                  max_lag=4, 
                  S=3, 
                  N=0, 
-                 init_B_params=None): 
+                 init_B_params=None,
+                 rng=None
+                 ): 
 
         ## Meta variables:
         self.max_lag = max_lag # Max lag parameter used for the moment-matching, i.e., $\bar\tau$ in Matila et al., 2020.
@@ -38,9 +50,16 @@ class _BaseGaussianHMM(BaseEstimator):
 
         ## Variables needed to compute A:
         self.H_hat = np.zeros([self.max_lag + 1, self.S, self.S])
+        self.H_N = np.zeros(self.max_lag + 1) # Number of samples used to estimate H_hat
         self.K_hat = np.zeros([self.S, self.S])
         # Cached observations used to compute H hat:
         self.obs_cache = []
+
+        ## Random number generator:
+        if rng is None:
+            self.rng = np.random.default_rng()
+        else:
+            self.rng = rng
 
 
     def update_phi_B(self, y):
@@ -70,30 +89,50 @@ class _BaseGaussianHMM(BaseEstimator):
 
         len_new_obs = len(y)
         y = self.obs_cache + y
-        offset = len(self.obs_cache)
+        offset = len(self.obs_cache) # offset \leq self.max_lag
+
+        # Initialize cached values for self.compute_B():
+        cached_B = -1*np.ones((len(y), self.S)) # Not very memory efficient, but good interpretability
+        cached_B = cached_B.tolist()
 
         # For t = 0: 
-        self.H_hat[0, :, :] *= self.N
+        self.H_hat[0, :, :] *= self.H_N[0]
         for k in range(len_new_obs):
             for i in range(self.S):
-                self.H_hat[0, i, i] += self.compute_B(y[offset + k], i)
-        self.H_hat[0, :, :] /= (self.N + len_new_obs)
+                if cached_B[offset+k][i] == -1:
+                    curr_B = self.compute_B(y[offset + k], i)
+                    cached_B[offset+k][i] = curr_B
+                else:
+                    curr_B = cached_B[offset+k][i]
+                self.H_hat[0, i, i] += curr_B
+            self.H_N[0] += 1
+        self.H_hat[0, :, :] /= self.H_N[0]
 
-        # For t > 0:
-        for t in range(self.max_lag + 1):
-            curr_tau = t+1
-            for i in range(self.S):
-                for j in range(self.S):
-                    self.H_hat[t, i, j] *= (self.N - curr_tau)
-                    for k in range(len_new_obs):
-                        if offset + k - curr_tau < 0:
-                            continue
-                        y_t = y[offset + k]
-                        y_t_minus_tau = y[offset + k - curr_tau]
+        # For t = 1, ..., self.max_lag:
+        for t in range(1, self.max_lag+1):
+            self.H_hat[t, :, :] *= self.H_N[t]
+            for k in range(len_new_obs):
+                if offset + k - t < 0: # In case obs_cache is too small (i.e., offset + k < t)
+                    continue
+                for i in range(self.S):
+                    for j in range(self.S):
+                        t_j = (offset + k, j)
+                        if cached_B[t_j[0]][t_j[1]] == -1:
+                            curr_B_1 = self.compute_B(y[offset + k], j)
+                            cached_B[t_j[0]][t_j[1]] = curr_B_1
+                        else:
+                            curr_B_1 = cached_B[t_j[0]][t_j[1]]
+
+                        t_minus_tau_i = (offset + k - t, i)
+                        if cached_B[t_minus_tau_i[0]][t_minus_tau_i[1]] == -1:
+                            curr_B_2 = self.compute_B(y[offset + k - t], i)
+                            cached_B[t_minus_tau_i[0]][t_minus_tau_i[1]] = curr_B_2
+                        else:
+                            curr_B_2 = cached_B[t_minus_tau_i[0]][t_minus_tau_i[1]]
                         
-                        self.H_hat[t, i, j] += self.compute_B(y_t_minus_tau, i)*self.compute_B(y_t, j)
-
-                    self.H_hat[t, i, j] /= (self.N + len_new_obs - curr_tau)
+                        self.H_hat[t, i, j] += curr_B_1*curr_B_2
+                self.H_N[t] += 1
+            self.H_hat[t, :, :] /= self.H_N[t]
                    
 
     def update_hat_K(self):
@@ -225,21 +264,27 @@ class _BaseGaussianHMM(BaseEstimator):
                 y = y[self.N - offset:]
                 if len(y) == 0:
                     return
-    
+
+            logger.info('Partial fit on phi and B started.')
             # Update B hat and phi hat.
             self.update_phi_B(y)
+            logger.info('Partial fit on phi and B ended.')
     
-        print('Updating H_hat')
+        logger.info('Partial fit on H started.')
         # Update H hat:
         self.update_hat_H(y)
+        logger.info('Partial fit on H ended.')
 
-        print('Updating K_hat')
+        logger.info('Partial fit on K started.')
         # Update K hat:
         self.update_hat_K()
+        logger.info('Partial fit on K ended.')
 
-        print('Updating A_hat')
+        logger.info('Partial fit on A started.')
         # Update A hat:
         self.update_hat_A()
+        logger.info('Partial fit on A ended.')
+
 
         # Finally, update obs_cache and N:
         for y_i in y:
@@ -331,14 +376,17 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
                  S=3, 
                  N=0, 
                  init_B_params=None,
+                 rng=None,
 
-                 num_samples_K=300): 
-        super().__init__(max_lag, S, N, init_B_params)
+                 num_samples_K=300,
+                 ): 
+        super().__init__(max_lag, S, N, init_B_params, rng)
         # Additional configurations needed for the Poincare Disk:
         self.PD = geoopt.PoincareBall()
         self.num_samples_K = num_samples_K
         self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method update_phi().
         self.on_basis = [.5*torch.tensor([1, 0]), .5*torch.tensor([0, 1])] # Initialize the orthonormal frame with respect to the identity matrix
+
 
     def compute_updated_phi(self, y_i, gamma_Np1):
         # Compute update of phi. See Zanini et al. 2017, eqn (6).
@@ -409,17 +457,9 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
             # Express in terms of standard parameterization so that we can
             # use geoopt for the exponential map:
             xi_Np1 = .5*(1 - x**2 - y**2)*xi_Np1_mat
-            # print('Old is :')
-            # print(x_N_k)
-            # print('Label is :')
-            # print(y_i)
-            # print('Del is :')
-            # print(xi_Np1)
 
             y_k_Np1 = self.PD.expmap(torch.tensor(x_N_k), torch.tensor(xi_Np1))
-            # print('New is :')
-            # print(y_k_Np1)
-            
+
             ret.append(y_k_Np1)
         return ret
 
@@ -492,7 +532,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
         erf = math.erf(sigma/(2**(.5)))
         return const*sigma*exp*erf
 
-    def update_hat_K(self):
+    def update_hat_K_deprecated(self):
         """Update current estimate for hat K.
         
         Currently using Standard Monte Carlo, but may derive close form of
@@ -511,6 +551,43 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
                     vals.append(self.compute_B(sample, i))
                 vals = np.array(vals)
                 self.K_hat[i, j] = np.mean(vals)
+
+    def update_hat_K(self):
+        """Update current estimate for hat K.
+        
+        Currently using Standard Monte Carlo, but may derive close form of
+        the integral in specific cases.
+        """
+        numSamples = self.num_samples_K
+
+        for i in range(self.S):
+            for j in range(i, self.S):
+                ci = self.B_params[i][0]
+                cj = self.B_params[j][0]
+
+                si = self.B_params[i][1]
+                sj = self.B_params[j][1]
+
+                numSamples_i = int(numSamples/2)
+                samples_i = randPoincGauss.randPoincGauss(ci, si, numSamples_i, rng=self.rng)
+                curr_K_integrand = []
+                for sample in samples_i:
+                    curr_K_integrand.append(self.compute_B(sample, j))
+                curr_K_est_i = np.mean(np.array(curr_K_integrand))
+
+                numSamples_j = numSamples - numSamples_i
+                samples_j = randPoincGauss.randPoincGauss(cj, sj, numSamples_j, rng=self.rng)
+                curr_K_integrand = []
+                for sample in samples_j:
+                    curr_K_integrand.append(self.compute_B(sample, i))
+                curr_K_est_j = np.mean(np.array(curr_K_integrand))
+                
+                self.K_hat[i, j] = (curr_K_est_i + curr_K_est_j)/2
+
+        # Reflect the the upper triangular part of K_hat across the diagonal, as K_hat is
+        # a priori a symmetric matrix:
+        self.K_hat[np.tril_indices(self.S, k=-1)] = self.K_hat.T[np.tril_indices(self.S, k=-1)]     
+
 
 class SPDGaussianHMM(_BaseGaussianHMM):
     """SPD-valued HMM with emission probabilities being Riemm. Gaussians.
