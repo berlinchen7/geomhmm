@@ -1014,7 +1014,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         log_invXY = np.real(scipy.linalg.logm(np.linalg.inv(X)@Y))
         return np.real(sqrt_tr(log_invXY))
 
-    def update_hat_K(self):
+    def update_hat_K_deprecated(self):
         """Update current estimate for hat K.
         
         Currently using Standard Monte Carlo, but may derive close form of
@@ -1034,6 +1034,40 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                     vals.append(self.compute_B(sample, i))
                 vals = np.array(vals)
                 self.K_hat[i, j] = np.mean(vals)
+
+    def update_hat_K(self):
+        """Update current estimate for hat K.
+        
+        Currently using Standard Monte Carlo, but may derive close form of
+        the integral in specific cases.
+        """
+        numSamples = self.num_samples_K
+
+        for i in range(self.S):
+            for j in range(i, self.S):
+                ci = self.B_params[i][0]
+                cj = self.B_params[j][0]
+
+                si = self.B_params[i][1]
+                sj = self.B_params[j][1]
+
+                numSamples_i = int(numSamples/2)
+                samples_i = randSPDGauss.randSPDGauss(ci, si, numSamples_i, rng=self.rng)
+                samples_i = [samples_i[:,:,k] for k in range(numSamples_i)]
+                curr_K_integrand = []
+                for sample in samples_i:
+                    curr_K_integrand.append(self.compute_B(sample, j))
+                curr_K_est_i = np.mean(np.array(curr_K_integrand))
+
+                numSamples_j = numSamples - numSamples_i
+                samples_j = randSPDGauss.randSPDGauss(cj, sj, numSamples_j, rng=self.rng)
+                samples_j = [samples_j[:,:,k] for k in range(numSamples_j)]
+                curr_K_integrand = []
+                for sample in samples_j:
+                    curr_K_integrand.append(self.compute_B(sample, i))
+                curr_K_est_j = np.mean(np.array(curr_K_integrand))
+                
+                self.K_hat[i, j] = (curr_K_est_i + curr_K_est_j)/2
 
     def is_SPD(X):
         """Check if a given matrix is (very nearly) an SPD matrix."""

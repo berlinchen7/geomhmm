@@ -1,9 +1,9 @@
 from geomhmm import PoincareDiskGaussianHMM
+from utils import permute_matrix, match_permutation
 import randPoincGauss
 import torch
 import numpy as np
 import time
-import itertools
 import argparse
 import shutil, os, json
 import logging
@@ -109,32 +109,6 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
 
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
-
-
-def match_permutation(true, predicted, num_states, dist):
-    ''' Find the permutation that minimizes the average distance between true and predicted
-    '''
-    curr_min_cost, curr_min_permutation = float('inf'), None
-    for perm in itertools.permutations(np.arange(num_states)):
-        perm = list(perm)
-        curr_cost = 0
-        for s in range(num_states):
-            curr_perm_pred = predicted[perm]
-            curr_cost += dist(true[s], curr_perm_pred[s])
-        curr_cost /= num_states
-        if curr_cost < curr_min_cost:
-            curr_min_cost = curr_cost
-            curr_min_permutation = perm
-    return list(curr_min_permutation)
-
-def permute_matrix(matrix, permutation):
-    ret = matrix.copy()
-    dim = matrix.shape[0]
-    for i in range(dim):
-        ret[:, i] = ret[permutation, i]
-    for i in range(dim):
-        ret[i, :] = ret[i, permutation]
-    return ret
 
 def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
                       max_lag=3, num_samples_K=500, num_runs=20, seed=None):

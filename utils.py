@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 import math
 
 def mhsample_rs(start, nsamples, pdf, proprnd, rng=None):                                                      
@@ -90,3 +91,28 @@ def unifpdf(x, lower, upper):
         return 0
     else:
         return 1/(upper - lower)
+
+def match_permutation(true, predicted, num_states, dist):
+    ''' Find the permutation that minimizes the average distance between true and predicted
+    '''
+    curr_min_cost, curr_min_permutation = float('inf'), None
+    for perm in itertools.permutations(np.arange(num_states)):
+        perm = list(perm)
+        curr_cost = 0
+        for s in range(num_states):
+            curr_perm_pred = predicted[perm]
+            curr_cost += dist(true[s], curr_perm_pred[s])
+        curr_cost /= num_states
+        if curr_cost < curr_min_cost:
+            curr_min_cost = curr_cost
+            curr_min_permutation = perm
+    return list(curr_min_permutation)
+
+def permute_matrix(matrix, permutation):
+    ret = matrix.copy()
+    dim = matrix.shape[0]
+    for i in range(dim):
+        ret[:, i] = ret[permutation, i]
+    for i in range(dim):
+        ret[i, :] = ret[i, permutation]
+    return ret

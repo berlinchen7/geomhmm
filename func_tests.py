@@ -1,4 +1,5 @@
 from geomhmm import SPDGaussianHMM, PoincareDiskGaussianHMM, EuclideanGaussianHMM
+from utils import match_permutation, permute_matrix
 import randSPDGauss
 import randPoincGauss
 import torch
@@ -61,7 +62,7 @@ def gen_ex2(num_ex=100):
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
             'A': np.eye(2), 'phi': phi}
 
-def gen_ex3(num_ex=400, num_truncated_ex=100):
+def gen_ex3(num_ex=400, num_truncated_ex=100, rng=None):
     '''
     Three mixture components, with nontrivial
     transition matrix.
@@ -69,7 +70,8 @@ def gen_ex3(num_ex=400, num_truncated_ex=100):
     from the following source:
     www.stat.berkeley.edu/~mgoldman/Section0220.pdf
     '''
-    np.random.seed(2)
+    if rng is None:
+        rng = np.random.default_rng()
 
     mean1 = np.eye(3)
     mean2 = np.array([[1, .7, .49],
@@ -89,20 +91,20 @@ def gen_ex3(num_ex=400, num_truncated_ex=100):
     # Construct the Markov chain:
     x = []
     init_dist = [1/3, 1/3, 1/3]
-    curr_state = np.random.multinomial(1, init_dist, size=1)
+    curr_state = rng.multinomial(1, init_dist, size=1)
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = np.random.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, A[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
     # Construct the observations:
-    y1 = randSPDGauss.randSPDGauss(mean1, disp1, num_ex)
+    y1 = randSPDGauss.randSPDGauss(mean1, disp1, num_ex, rng=rng)
     y1 = [y1[:,:,i] for i in range(y1.shape[2])]
-    y2 = randSPDGauss.randSPDGauss(mean2, disp2, num_ex)
+    y2 = randSPDGauss.randSPDGauss(mean2, disp2, num_ex, rng=rng)
     y2 = [y2[:,:,i] for i in range(y2.shape[2])]
-    y3 = randSPDGauss.randSPDGauss(mean3, disp3, num_ex)
+    y3 = randSPDGauss.randSPDGauss(mean3, disp3, num_ex, rng=rng)
     y3 = [y3[:,:,i] for i in range(y3.shape[2])]
         
     y = []
@@ -371,12 +373,31 @@ def gen_ex9(num_ex=200, seed=2):
 
 def evaluate(m, y, label, fit_B_phi=True):
     m.partial_fit(y, fit_B_phi)
-    print('The true B parameters are : \n{}'.format(label['B']))
-    print('The fitted B parameters are : \n{}'.format(m.B_params))
+
+
+    true_centroids = np.array([l[0] for l in label['B']])
+    pred_centroids = np.array([p[0] for p in m.B_params])
+    true_disp = np.array([l[1] for l in label['B']])
+    pred_disp = np.array([p[1] for p in m.B_params])
+    true_trans_mat = label['A']
+    pred_trans_mat = m.A_hat
+
+    perm = match_permutation(true_centroids, pred_centroids, m.A_hat.shape[0], m.compute_dist)
+    pred_centroids = pred_centroids[perm]
+    pred_centroids = np.array(pred_centroids)
+    true_centroids = np.array(true_centroids)
+    pred_disp = pred_disp[perm]
+    pred_trans_mat = permute_matrix(pred_trans_mat, perm)
+    pred_phi = np.array(m.phi)[perm]
+ 
+    print('The true centroids are : \n{}'.format(true_centroids))
+    print('The fitted centroids are : \n{}'.format(pred_centroids))
+    print('The true dispersions are : \n{}'.format(true_disp))
+    print('The fitted dispersions are : \n{}'.format(pred_disp))
     print('The true transition matrix is : \n{}'.format(label['A']))
     print('The fitted transition matrix is : \n{}'.format(m.A_hat))
     print('The true stationary distribution is : \n{}'.format(label['phi']))
-    print('The fitted stationary distribution is : \n{}'.format(m.phi))
+    print('The fitted stationary distribution is : \n{}'.format(pred_phi))
 
 
 def main():
@@ -393,8 +414,8 @@ def main():
     # evaluate(m2, y2, label2)
 
     # print('\n\nProcessing test case 3...')
-    # y3, label3 = gen_ex3()
-    # m3 = SPDGaussianHMM(S=3, p=3)
+    # y3, label3 = gen_ex3(num_ex=1000)
+    # m3 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=1000)
     # evaluate(m3, y3, label3)
 
     # print('\n\nProcessing test case 4...')
@@ -421,8 +442,8 @@ def main():
     # evaluate(m7, y7, label7, fit_B_phi=True)
 
     print('\n\nProcessing test case 8...')
-    y8, label8 = gen_ex7(num_ex=1000, seed=10)
-    m8 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=10000)
+    y8, label8 = gen_ex7(num_ex=10000, seed=10)
+    m8 = PoincareDiskGaussianHMM(S=3, max_lag=5, num_samples_K=10000)
     evaluate(m8, y8, label8, fit_B_phi=True)
 
 
