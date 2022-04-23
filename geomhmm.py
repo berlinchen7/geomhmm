@@ -310,6 +310,7 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
                  N=0, 
                  init_B_params=None,
 
+                 gm_random_state=0,
                  p=1): 
         super().__init__(max_lag, S, N, init_B_params)
         if init_B_params is None:
@@ -320,7 +321,7 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
         self.p = p
         # EM based method to fit Gaussian mixture; warm_start enables
         # online learning:
-        self.gm = GaussianMixture(n_components=self.S, random_state=0, warm_start=True)
+        self.gm = GaussianMixture(n_components=self.S, random_state=gm_random_state, warm_start=True)
 
     def update_phi_B(self, y):
         ''' Use EM algo to fit an Euclidean Gaussian Mixture
@@ -605,6 +606,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                  S=3, 
                  N=0, 
                  init_B_params=None,
+                 rng=None,
 
                  p=2, 
                  alpha=.25, 
@@ -613,7 +615,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                  num_samples_sigma_prime=400,
                  num_samples_sigma_prime_prime=400): 
 
-        super().__init__(max_lag, S, N, init_B_params)
+        super().__init__(max_lag, S, N, init_B_params, rng)
 
         # Additional configurations needed for the SPD manifold:
         self.p = p # Speficify that it is a manifold of p by p SPD matrices.
@@ -868,7 +870,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             mean = np.zeros(self.p)
             cov = np.eye(self.p)*(sigma**2)
             # Create MC samples that have shape (num_samples, self.p):
-            r = np.random.multivariate_normal(mean, cov, num_samples)
+            r = self.rng.multivariate_normal(mean, cov, num_samples)
             int_samples = np.zeros(num_samples)
             norm_const = ((2*math.pi)**self.p/2)*(sigma**self.p)
             for i in range(num_samples):
@@ -925,7 +927,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             mean = np.zeros(self.p)
             cov = np.eye(self.p)*(sigma**2)
             # Create MC samples that have shape (num_samples, self.p):
-            r = np.random.multivariate_normal(mean, cov, num_samples)
+            r = self.rng.multivariate_normal(mean, cov, num_samples)
             int_samples = np.zeros(num_samples)
             norm_const = ((2*math.pi)**self.p/2)*(sigma**self.p)
             for i in range(num_samples):
@@ -974,7 +976,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             mean = np.zeros(self.p)
             cov = np.eye(self.p)*(sigma**2)
             # Create MC samples that have shape (num_samples, self.p):
-            r = np.random.multivariate_normal(mean, cov, num_samples)
+            r = self.rng.multivariate_normal(mean, cov, num_samples)
             int_samples = np.zeros(num_samples)
             norm_const = ((2*math.pi)**self.p/2)*(sigma**self.p)
             for i in range(num_samples):
@@ -1025,7 +1027,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             mean = self.B_params[j][0]
             sigma = self.B_params[j][1]
     
-            samples = randSPDGauss.randSPDGauss(mean, sigma, numSamples)
+            samples = randSPDGauss.randSPDGauss(mean, sigma, numSamples, rng=self.rng)
             samples = [samples[:,:,k] for k in range(numSamples)]
 
             for i in range(self.S):
