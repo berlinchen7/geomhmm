@@ -387,9 +387,10 @@ def main():
     # evaluate(m1, y1, label1)
 
     # logger.info('Start testing on ex 2.')
-    # y2, label2 = gen_ex2(num_ex=10000, rng=rng)
-    # m2 = SPDGaussianHMM(S=2, p=3, max_lag=4, num_samples_sigma=100, num_samples_K=10000, rng=rng)
-    # evaluate(m2, y2, label2)
+    # y2, label2 = gen_ex2(num_ex=1000, rng=rng)
+    # m2 = SPDGaussianHMM(S=2, p=3, max_lag=1, num_samples_sigma=1000, num_samples_K=1000, rng=rng)
+    # m2.B_params, m2.phi = label2['B'], np.array(label2['phi'])
+    # evaluate(m2, y2, label2, fit_B_phi=False)
 
     # logger.info('Start testing on ex 3.')
     # y3, label3 = gen_ex3(num_ex=1000, rng=rng)

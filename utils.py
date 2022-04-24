@@ -75,6 +75,54 @@ def compute_PDGauss_pdf(x, centroid, sigma):
     dist = compute_PD_dist(x, centroid)
     return math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor
 
+def is_SPD(X):
+    """Check if a given matrix is (very nearly) an SPD matrix.
+    
+    NOTE:
+    	1. Check symmetric only up to 2 decimal places.
+    """
+    is_symmetric = (np.round(X, 2) == np.round(X.T, 2)).all()    
+    is_positive = np.all(np.linalg.eigvals(X) > 0)
+
+    if not (is_positive and is_symmetric):
+        print(X)
+        print(np.linalg.eigvals(X))
+        print(is_symmetric)
+        print(is_positive)
+    return is_positive and is_symmetric
+
+def SPD_ize(M):
+	"""Return a copy of M that has been projected to the SPD manifold."""
+
+	ret = M.copy()
+	N = M.shape[0]
+
+	# Force symmetrize the matrix:
+	ret[np.tril_indices(N, k=-1)] = ret.T[np.tril_indices(N, k=-1)]
+
+	# Set negative eigenvalues to a small positive value: 
+	eigvals, eigvecs = np.linalg.eig(ret)
+	eigvals = eigvals.real
+	eigvals[eigvals <= 0] = .01
+	ret = eigvecs @ np.diag(eigvals) @ eigvecs.T
+
+	return ret
+
+
+def SPD_sqrt(M, check_SPD=False, proj_to_SPD=True):
+	"""Compute the square root of a SPD matrix. 
+
+	"""
+	if check_SPD:
+		assert(is_SPD(M))
+	if proj_to_SPD:
+		M = SPD_ize(M)
+	u, s, vh = np.linalg.svd(M)
+	# print("M is {}, u is {}, s is {}. vh is {}".format(M, u, s, vh))
+	ret = u @ (np.diag(s)**.5) @ vh
+	# print("{} has shape {}".format(ret, ret.shape))
+	return ret
+
 def unifpdf_vect(x, lower, upper):
     too_low = x < lower
     too_high = x > upper

@@ -30,7 +30,7 @@ def generate_ri(gamma, d, N, rng, omit):
     def proppdf(x, y): return unifpdf_dim_p(y-x, -delta, delta)
     def proprnd(x): return x + rng.random(d)*2*delta - delta
 
-    r, _ = utils.mhsample(np.random.rand(d), N+omit, pdf, proppdf, proprnd, rng=rng)
+    r, _ = utils.mhsample(rng.random(d), N+omit, pdf, proppdf, proprnd, rng=rng)
     return r[omit:] # Chop off the ommited samples.
 
 def generate_r(sigma, num_samples, rng, omit):
@@ -79,7 +79,8 @@ def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100):
         Y[:,:,i] = theta.T @ D @ theta
 
     # Translate to center at Ybar:
-    g = la.sqrtm(Ybar) #NOTE: It is unclear which square root scipy chooses.
+    # g = la.sqrtm(Ybar) #NOTE: It is unclear which square root scipy chooses.
+    g = utils.SPD_sqrt(Ybar)
 
     for i in range(N):
         Temp = Y[:,:,i].copy()
@@ -118,7 +119,8 @@ def randSPDGauss(Ybar, gamma, N, rng=None, omit=100):
         Temp = np.matmul(theta.T, D)
         Y[:,:,i] = np.matmul(Temp, theta)
 
-    g = la.sqrtm(Ybar) #NOTE: It is unclear which square root scipy chooses.
+    # g = la.sqrtm(Ybar) #NOTE: It is unclear which square root scipy chooses.
+    g = utils.SPD_sqrt(Ybar)
 
     for i in range(N):
         Temp1 = np.copy(Y[:,:,i])

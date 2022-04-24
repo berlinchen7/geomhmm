@@ -12,6 +12,7 @@ import geoopt
 
 import randSPDGauss
 import randPoincGauss
+from utils import SPD_sqrt
 
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
@@ -668,7 +669,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         all singular values <= 1/(2*(alpha**2)).
         '''
         u, s, vh = np.linalg.svd(A)
-        s = [s_i/(s_i**2 + alpha) for s_i in s]
+        s = s / (s**2 + alpha)
         return u @ np.diag(s) @ vh
 
     def compute_irr_decomp(self, x):
@@ -720,7 +721,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         for k in range(self.S):
             # Translate the orthonormal frame to the tangent space of y_i:
             # (See p. 90 of Medical Image Analysis by Pennec et al.)
-            P_sqrt = scipy.linalg.sqrtm(self.B_params[k][0])
+            # P_sqrt = scipy.linalg.sqrtm(self.B_params[k][0])
+            P_sqrt = SPD_sqrt(self.B_params[k][0])
             on_basis_transported = [P_sqrt @ Ei @ P_sqrt for Ei in self.on_basis]
     
             # Compute the Fisher information matrices:
@@ -752,7 +754,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             u_1 = self.h[k]/(sigma_k**2)
             u_1 *= y_k_N_1 - y_Np1_1
 
-            P_sqrt = scipy.linalg.sqrtm(y_k_N_2)
+            # P_sqrt = scipy.linalg.sqrtm(y_k_N_2)
+            P_sqrt = SPD_sqrt(y_k_N_2)
             # We use Tikhonov regularized inverse b/c P_sqrt may have
             # very small eigenvalues:
             P_sqrt_inv = self.Tikhonov_inv(P_sqrt, self.alpha)
@@ -1071,19 +1074,9 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                 
                 self.K_hat[i, j] = (curr_K_est_i + curr_K_est_j)/2
 
-    def is_SPD(X):
-        """Check if a given matrix is (very nearly) an SPD matrix."""
-        is_positive = np.all(np.linalg.eigvals(X) > 0)
-        # NOTE: Sometimes the matrix is not perfectly symmetric for some reason.
-        #       Might be just an artifact of the sampling fxn (randSPDGauss)
-        is_symmetric = (np.round(X, 5) == np.round(X.T, 5)).all()
-        if not (is_positive and is_symmetric):
-            print('%.32f' % X[0, 1])
-            print('%.32f' % X[1, 0])
-            print(is_positive)
-            print(is_symmetric)
-            print(X[0, 1] == X[1, 0])
-        return is_positive and is_symmetric
+        # Reflect the the upper triangular part of K_hat across the diagonal, as K_hat is
+        # a priori a symmetric matrix:
+        self.K_hat[np.tril_indices(self.S, k=-1)] = self.K_hat.T[np.tril_indices(self.S, k=-1)] 
 
 
 def main():
