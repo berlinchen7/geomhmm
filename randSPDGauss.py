@@ -83,10 +83,9 @@ def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100):
     g = utils.SPD_sqrt(Ybar)
 
     for i in range(N):
-        Temp = Y[:,:,i].copy()
-        Y[:,:,i] = g.T @ Temp @ g
+        Y[:,:,i] = g.T @ Y[:,:,i] @ g
 
-    return T
+    return Y
 
 
 def randSPDGauss(Ybar, gamma, N, rng=None, omit=100):
@@ -116,16 +115,13 @@ def randSPDGauss(Ybar, gamma, N, rng=None, omit=100):
 
         ri = np.array(r[i])
         D = np.diag(np.exp(ri))
-        Temp = np.matmul(theta.T, D)
-        Y[:,:,i] = np.matmul(Temp, theta)
+        Y[:,:,i] = theta.T @ D @ theta
 
     # g = la.sqrtm(Ybar) #NOTE: It is unclear which square root scipy chooses.
     g = utils.SPD_sqrt(Ybar)
 
     for i in range(N):
-        Temp1 = np.copy(Y[:,:,i])
-        Temp2 = np.matmul(g.T, Temp1)
-        Y[:,:,i] = np.matmul(Temp2, g)
+        Y[:,:,i] = g.T @ Y[:,:,i] @ g
         
     return Y
 
