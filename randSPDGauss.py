@@ -38,13 +38,13 @@ def generate_r(sigma, num_samples, rng, omit):
     For more details, see, e.g., equation (24) of Said et al., 2017.
     '''
 
-    delta = sigma
+    delta = sigma #.05
     pdf = lambda x: np.exp(-.5*np.square(x)/(sigma**2)) * np.sinh(x)
     proppdf = lambda x, y: utils.unifpdf(y - x, -delta, delta)
     proprnd = lambda x: x + rng.random()*2*delta - delta
 
     r, _ = utils.mhsample(1, num_samples+omit, pdf, proppdf, proprnd, rng=rng)
-    return r
+    return r[omit:]
 
 def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100):
     if rng is None:
@@ -133,6 +133,14 @@ def main():
         ret = randSPDGauss(a, 1, 3)
         for i in range(3):
             assert matrix_rank(ret[:,:,i]) == n
+
+    # Print some examples:
+    Ybar = np.eye(2)
+    gamma = .1
+    N = 10
+    samples = randSPDGauss(Ybar, gamma, N)
+    for i in range(N):
+        print(samples[:,:,i])
 
 if __name__ == "__main__":
     main()

@@ -4,4 +4,4 @@ sklearn
 cvxopt
 torch
 geoopt
-
+tqdm

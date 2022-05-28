@@ -879,10 +879,10 @@ def main():
     # m6 = EuclideanGaussianHMM(S=3, p=1, max_lag=3)
     # evaluate(m6, y6, label6)
 
-    # logger.info('Start testing on ex 7.')
-    # y7, label7 = gen_ex7(num_ex=10000, rng=rng)
-    # m7 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=10000, rng=rng)
-    # evaluate(m7, y7, label7, fit_B_phi=True)
+    logger.info('Start testing on ex 7.')
+    y7, label7 = gen_ex7(num_ex=10000, rng=rng)
+    m7 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=10000, rng=rng)
+    evaluate(m7, y7, label7, fit_B_phi=True)
 
     # logger.info('Start testing on ex 8.')
     # y8, label8 = gen_ex8(num_ex=10000, rng=rng)
@@ -920,11 +920,11 @@ def main():
     # m13.B_params, m13.phi = label13['B'], np.array(label13['phi'])
     # evaluate(m13, y13, label13, fit_B_phi=False)
 
-    logger.info('Start testing on ex 14.')
-    y14, label14 = gen_ex14(num_ex=3000, rng=rng)
-    m14 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=3000, rng=rng)
-    m14.B_params, m14.phi = label14['B'], np.array(label14['phi'])
-    evaluate(m14, y14, label14, fit_B_phi=False)
+    # logger.info('Start testing on ex 14.')
+    # y14, label14 = gen_ex14(num_ex=3000, rng=rng)
+    # m14 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=3000, rng=rng)
+    # m14.B_params, m14.phi = label14['B'], np.array(label14['phi'])
+    # evaluate(m14, y14, label14, fit_B_phi=False)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import numpy as np
 import math
 import scipy
 import logging
+from tqdm import tqdm
 
 from sklearn.base import BaseEstimator
 from sklearn.mixture import GaussianMixture
@@ -82,8 +83,11 @@ class _BaseGaussianHMM(BaseEstimator):
         norm_factor = self.compute_norm_factor(sigma)
 
         dist = self.compute_dist(y, mean)
+        # print(f"sigma is {sigma} dist is {dist},  norm factor is {norm_factor}")
 
         return math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor
+
+        # return max(math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor, 2.2e-16)
 
     def update_hat_H(self, y):
         """Update current estimate for hat H."""
@@ -98,7 +102,7 @@ class _BaseGaussianHMM(BaseEstimator):
 
         # For t = 0: 
         self.H_hat[0, :, :] *= self.H_N[0]
-        for k in range(len_new_obs):
+        for k in tqdm(range(len_new_obs), desc="  Compute B(y, i)"):
             for i in range(self.S):
                 if cached_B[offset+k][i] == -1:
                     curr_B = self.compute_B(y[offset + k], i)
@@ -134,7 +138,6 @@ class _BaseGaussianHMM(BaseEstimator):
                         self.H_hat[t, i, j] += curr_B_1*curr_B_2
                 self.H_N[t] += 1
             self.H_hat[t, :, :] /= self.H_N[t]
-                   
 
     def update_hat_K(self):
         pass
@@ -198,48 +201,6 @@ class _BaseGaussianHMM(BaseEstimator):
         self.A_hat = np.reshape(curr_sol, (self.S, self.S), order='F')
 
 
-    def update_hat_A_deprecated(self):
-        """Update estimate for A using the cvxpy package.
-
-        Note: Deprecated, as cvxpy is unstable in our use case. See
-        https://stackoverflow.com/questions/59843953/receiving-none-as-result-in-cvxpy-problem-solver
-        """
-        import cvxpy as cp
-
-        C_hat = np.empty([self.max_lag+1, self.S, self.S])
-
-        np.fill_diagonal(C_hat[0, :, :], self.phi)
-        Id = np.identity(self.S)
-        
-        for t in range(self.max_lag):
-            curr_tau = t+1 # While C is indexed by curr_tau, H is indexed
-                           #  by t. May need to change since confusing.
-
-            # Define and solve a convex problem:
-            X = cp.Variable((self.S, self.S))
-            cost = cp.norm(self.H_hat[t,: ,:] - self.K_hat.T @ C_hat[curr_tau-1, :, :] @ X @ self.K_hat, p='fro')**2
-            constraints = [X >= 0, X @ Id == Id]
-            prob = cp.Problem(cp.Minimize(cost), constraints)
-            prob.solve()
-
-            # The cvxpy package is unstable, so given the same input,
-            # sometimes X.value is a proper matrix and sometimes X.value
-            # is None, in which case there will be an error:
-            #print(X.value)
-            C_hat[curr_tau, :, :] = C_hat[curr_tau-1, :, :] @ X.value
-
-        # Compute estimate for A by solving yet another convex problem:
-        A_hat_stack = cp.Variable((self.S, self.S))
-        curr_C_hat_a = np.reshape(C_hat[0:self.max_lag,:,:], (self.S*self.max_lag, self.S))
-        curr_C_hat_b = np.reshape(C_hat[1:self.max_lag+1,:,:], (self.S*self.max_lag, self.S))
-        cost = cp.norm(curr_C_hat_a@A_hat_stack - curr_C_hat_b, p='fro')**2
-        constraints = [A_hat_stack >= 0, A_hat_stack@Id == Id]
-        prob = cp.Problem(cp.Minimize(cost), constraints)
-        prob.solve()
-
-        self.A_hat = A_hat_stack.value
-
-
     def partial_fit(self, y, fit_B_phi=True):
         """Incremental fit on a batch of samples.
 
@@ -259,9 +220,7 @@ class _BaseGaussianHMM(BaseEstimator):
                 while self.N < self.S:
                     curr_y = y[self.N - offset]
                     self.B_params[self.N][0] = curr_y
-                    self.obs_cache.append(curr_y)
                     self.N += 1
-                self.obs_cache = self.obs_cache[-self.max_lag:]
                 y = y[self.N - offset:]
                 if len(y) == 0:
                     return
@@ -502,7 +461,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
 
     def update_phi_B(self, y):
         """Update current estimate for phi and B."""
-        for ind, y_i in enumerate(y):
+        for ind, y_i in enumerate(tqdm(y, desc='  Learning Gaussian mixture')):
             # TODO: Need to clarify the appropraite choice of gamma;
             #       for now follow eqn (9) of Titterington 1984
             gamma_Np1 = (self.N+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
@@ -534,26 +493,6 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
         erf = math.erf(sigma/(2**(.5)))
         return const*sigma*exp*erf
 
-    def update_hat_K_deprecated(self):
-        """Update current estimate for hat K.
-        
-        Currently using Standard Monte Carlo, but may derive close form of
-        the integral in specific cases.
-        """
-        numSamples = self.num_samples_K
-        for j in range(self.S):
-            mean = self.B_params[j][0]
-            sigma = self.B_params[j][1]
-    
-            samples = randPoincGauss.randPoincGauss(mean, sigma, numSamples)
-
-            for i in range(self.S):
-                vals = []
-                for sample in samples:
-                    vals.append(self.compute_B(sample, i))
-                vals = np.array(vals)
-                self.K_hat[i, j] = np.mean(vals)
-
     def update_hat_K(self):
         """Update current estimate for hat K.
         
@@ -562,8 +501,8 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
         """
         numSamples = self.num_samples_K
 
-        for i in range(self.S):
-            for j in range(i, self.S):
+        for i in tqdm(range(self.S), desc='  i', position=0):
+            for j in tqdm(range(i, self.S), desc='  j', position=1, leave=False):
                 ci = self.B_params[i][0]
                 cj = self.B_params[j][0]
 
@@ -614,7 +553,9 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                  num_samples_K=400,
                  num_samples_sigma=400,
                  num_samples_sigma_prime=400,
-                 num_samples_sigma_prime_prime=400): 
+                 num_samples_sigma_prime_prime=400,
+
+                 min_sigma=2.2e-16): 
 
         super().__init__(max_lag, S, N, init_B_params, rng)
 
@@ -639,6 +580,10 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         self.cached_zeta_prime = {}
         self.cached_zeta_prime_prime = {}
 
+        # Hard lower bound on the estimate for the dispersion parameter:
+        self.min_sigma = min_sigma
+
+
 
     def compute_updated_phi(self, y_i, gamma_Np1):
         # Compute update of phi. See Zanini et al. 2017, eqn (6).
@@ -646,11 +591,13 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         # are also using phi as the stationary distribution of the
         # HMM we denote it as phi).
         sN = np.sqrt(self.phi)
+
         # Compute h_k:
         h = [(sN[i]**2)*self.compute_B(y_i, i) for i in range(self.S)]
         h = np.array(h)
-        h = h/h.sum()
+        h = h/h.sum() if h.sum() != 0 else [1/self.S for i in range(self.S)]
         self.h = h.copy() # Update h for later use (e.g., update_centroid()).
+
         # Compute xi^N+1:
         xiNp1 = (gamma_Np1/2)*((h/sN)-sN)
         # Compute s^N+1:
@@ -659,6 +606,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             sNp1 = sN
         else:
             sNp1 = sN*math.cos(norm_xi) + (h/sN - sN)*gamma_Np1*math.sin(norm_xi)/(norm_xi*2)
+
         # Return updated phi:
         return sNp1**2
 
@@ -760,6 +708,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             # very small eigenvalues:
             P_sqrt_inv = self.Tikhonov_inv(P_sqrt, self.alpha)
             u_2_mat = P_sqrt @ scipy.linalg.logm(P_sqrt_inv @ y_Np1_2 @ P_sqrt_inv) @ P_sqrt
+            # print(f"This is sigma^2: {(sigma_k)}; this is h: {self.h[k]}")
             u_2_mat *= self.h[k]/(sigma_k**2)
             
             def g_y_k_N(V, W): # Computes <V, W>_Riem at y_k_N_2
@@ -782,6 +731,10 @@ class SPDGaussianHMM(_BaseGaussianHMM):
 
             # Finally, store the updated centroid (c.f. eqns (9) (10) of Zanini et al., 2017):
             y_k_Np1_1 = y_k_N_1 - xi_1_Np1
+            # print('u_2_mat; xi_2_Np1_mat; P_sqrt_inv:')
+            # print(u_2_mat)
+            # print(xi_2_Np1_mat)
+            # print(P_sqrt_inv)
             y_k_Np1_2 = P_sqrt @ scipy.linalg.expm(P_sqrt_inv @ xi_2_Np1_mat @ P_sqrt_inv) @ P_sqrt
 
             # The debug prints below was helpful:
@@ -823,12 +776,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                 eta_k_Np1 = -1*eta_k_Np1
 #                raise RuntimeError('hat eta_{}^(N+1) is {}, which is not negative.'.format(k, eta_k_Np1))
             sigma_k_Np1 = np.sqrt(-1/(2*eta_k_Np1))
-            ret.append(sigma_k_Np1)
+            ret.append(max(sigma_k_Np1, self.min_sigma))
         return ret
 
     def update_phi_B(self, y):
         """Update current estimate for phi and B."""
-        for ind, y_i in enumerate(y):
+        for ind, y_i in enumerate(tqdm(y, desc='  Learning Gaussian mixture')):
             # TODO: Need to clarify the appropraite choice of gamma;
             #       for now follow eqn (9) of Titterington 1984
             gamma_Np1 = (self.N+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
@@ -1019,27 +972,6 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         log_invXY = np.real(scipy.linalg.logm(np.linalg.inv(X)@Y))
         return np.real(sqrt_tr(log_invXY))
 
-    def update_hat_K_deprecated(self):
-        """Update current estimate for hat K.
-        
-        Currently using Standard Monte Carlo, but may derive close form of
-        the integral in specific cases.
-        """
-        numSamples = self.num_samples_K
-        for j in range(self.S):
-            mean = self.B_params[j][0]
-            sigma = self.B_params[j][1]
-    
-            samples = randSPDGauss.randSPDGauss(mean, sigma, numSamples, rng=self.rng)
-            samples = [samples[:,:,k] for k in range(numSamples)]
-
-            for i in range(self.S):
-                vals = []
-                for sample in samples:
-                    vals.append(self.compute_B(sample, i))
-                vals = np.array(vals)
-                self.K_hat[i, j] = np.mean(vals)
-
     def update_hat_K(self):
         """Update current estimate for hat K.
         
@@ -1048,8 +980,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         """
         numSamples = self.num_samples_K
 
-        for i in range(self.S):
-            for j in range(i, self.S):
+        for i in tqdm(range(self.S), desc='  i', position=0):
+            for j in tqdm(range(i, self.S), desc='  j', position=1, leave=False):
                 ci = self.B_params[i][0]
                 cj = self.B_params[j][0]
 
