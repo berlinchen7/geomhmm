@@ -20,7 +20,7 @@ Here is an example on how to use the code:
 from geomhmm import PoincareDiskGaussianHMM
 from exp import gen_chain_Tupker2021
 
-y, _ = gen_chain_Tupker2021() # Generate an example Poincare-disk-valued HMM
+_, y, _ = gen_chain_Tupker2021() # Generate an example Poincare-disk-valued HMM
 m = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=500) # Initialize the learner
 m.partial_fit(y) # Learning step
 print(m.B_params, m.phi, m.A_hat) # Print the current estimates
