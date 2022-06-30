@@ -1,12 +1,14 @@
+import logging
+import time
+
+import torch
+import numpy as np
+
 from geomhmm import SPDGaussianHMM, PoincareDiskGaussianHMM, EuclideanGaussianHMM
+from extensions import *
 from utils import match_permutation, permute_matrix
 import randSPDGauss
 import randPoincGauss
-import torch
-import numpy as np
-import time
-
-import logging
 
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
@@ -45,11 +47,14 @@ def gen_ex2(num_ex=200, rng=None):
     if rng is None:
         rng = np.random.default_rng()
 
-    true_mean1 = np.eye(3)
-    true_mean2 = np.array([[1, .7, .49],                                        
-                          [.7, 1, .7],                                         
-                          [.49, .7, 1]])
-    true_disp1 = true_disp2 = .1
+    true_mean1 = np.eye(3)*2
+    true_mean2 = np.array([[1, .8, .64], 
+                          [.8, 1, .8],
+                          [.64, .8, 1]])
+    # true_mean2 = np.array([[1, .7, .49],                                        
+    #                       [.7, 1, .7],                                         
+    #                       [.49, .7, 1]])
+    true_disp1 = true_disp2 = .05
 
     y1 = randSPDGauss.randSPDGauss(true_mean1, true_disp1, num_ex, rng=rng)
     y1 = [y1[:,:,i] for i in range(y1.shape[2])]
@@ -58,10 +63,8 @@ def gen_ex2(num_ex=200, rng=None):
 
     A = np.array([[.4, .6],
                   [.2, .8]])
-    A = .6*np.eye(2) + .4*A
 
     phi = [.25, .75]
-
 
     # Construct the Markov chain:
     x = []
@@ -345,7 +348,6 @@ def gen_ex7(num_ex=1000, rng=None):
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
-
 def gen_ex8(num_ex=400, rng=None):
     '''
     Five mixture components, with nontrivial
@@ -354,16 +356,16 @@ def gen_ex8(num_ex=400, rng=None):
     if rng is None:
         rng = np.random.default_rng()
 
-    mean1 = np.array([[ 0.2630826 , -0.30497117],
-                      [-0.30497117,  0.86408843]])
-    mean2 = np.array([[ 1.9584816, -0.4395455],
-                      [-0.4395455,  0.2965685]])
-    mean3 = np.array([[2.99070057, 2.71767674],
-                      [2.71767674, 4.51872454]])
-    mean4 = np.array([[ 1.03972926, -0.14414462],
-                      [-0.14414462, 12.29475353]])
-    mean5 = np.array([[ 0.5426561 , -0.7784463 ],
-                      [-0.7784463 ,  3.31821909]])
+    mean1 = np.array([[1.646, 0.056],
+                      [0.056, 2.379]])
+    mean2 = np.array([[2.294,0.744],
+                      [0.744,1.415]])
+    mean3 = np.array([[2.631,-0.127],
+                      [-0.127,1.277]])
+    mean4 = np.array([[0.674,0.454],
+                      [0.454,2.056]])
+    mean5 = np.array([[1.829,-0.919],
+                      [-0.919,1.602]])
 
     disp1 = disp2 = disp3 = disp4 = disp5 = .1
 
@@ -372,7 +374,6 @@ def gen_ex8(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    A = .5*A + .5*np.eye(5) # Lazy version of A
     phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
@@ -463,7 +464,6 @@ def gen_ex9(num_ex=400, rng=None):
     y3 = rng.multivariate_normal(mean3, disp3, num_ex)
     y4 = rng.multivariate_normal(mean4, disp4, num_ex)
     y5 = rng.multivariate_normal(mean5, disp5, num_ex)
-
  
     y1, y2, y3, y4, y5 = list(y1), list(y2), list(y3), list(y4), list(y5)
         
@@ -487,76 +487,6 @@ def gen_ex9(num_ex=400, rng=None):
 def gen_ex10(num_ex=400, rng=None):
     '''
     Five mixture components, with nontrivial
-    transition matrix. Values on the Euclidean line.
-    '''
-    if rng is None:
-        rng = np.random.default_rng()
-
-    mean1 = np.array([0])
-    disp1 = np.eye(1)*.1
-
-    mean2 = np.array([-3])
-    disp2 = np.eye(1)*.1
-
-    mean3 = np.array([3])
-    disp3 = np.eye(1)*.1
-
-    mean4 = np.array([-10])
-    disp4 = np.eye(1)*.1
-
-    mean5 = np.array([10])
-    disp5 = np.eye(1)*.1
-
-
-    A = np.array([[.3, .1, .2, .1, .3],
-                  [.1, .4, .2, .2, .1],
-                  [.2, .2, .3, .1, .2],
-                  [.1, .1, .2, .5, .1],
-                  [.4, .1, .1, .1, .3]])
-    A = .5*A + .5*np.eye(5) # Lazy version of A
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
-
-    # Construct the Markov chain:
-    x = []
-    init_dist = [1/5, 1/5, 1/5, 1/5, 1/5]
-    curr_state = rng.multinomial(1, init_dist, size=1)
-    curr_state = np.argmax(curr_state, axis=1)[0]
-    x.append(curr_state)
-    for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
-        curr_state = np.argmax(curr_state, axis=1)[0]
-        x.append(curr_state)
-
-    # Construct the observations:
-    y1 = rng.multivariate_normal(mean1, disp1, num_ex)
-    y2 = rng.multivariate_normal(mean2, disp2, num_ex)
-    y3 = rng.multivariate_normal(mean3, disp3, num_ex)
-    y4 = rng.multivariate_normal(mean4, disp4, num_ex)
-    y5 = rng.multivariate_normal(mean5, disp5, num_ex)
-
- 
-    y1, y2, y3, y4, y5 = list(y1), list(y2), list(y3), list(y4), list(y5)
-        
-    y = []
-    for xi in x:
-        if xi == 0:
-            y.append(y1.pop())
-        elif xi == 1:
-            y.append(y2.pop())
-        elif xi == 2:
-            y.append(y3.pop())
-        elif xi == 3:
-            y.append(y4.pop())
-        else:
-            assert xi == 4
-            y.append(y5.pop())
-
-    return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
-
-def gen_ex11(num_ex=400, rng=None):
-    '''
-    Five mixture components, with nontrivial
     transition matrix. Values on the Poincare disk.
     '''
     if rng is None:
@@ -577,13 +507,11 @@ def gen_ex11(num_ex=400, rng=None):
     mean5 = torch.tensor([-.82, -.29])
     disp5 = .1
 
-
     A = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    A = .5*A + .5*np.eye(5) # Lazy version of A
     phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
@@ -621,7 +549,7 @@ def gen_ex11(num_ex=400, rng=None):
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
             'A': A, 'phi': phi}
 
-def gen_ex12(num_ex=400, rng=None):
+def gen_ex11(num_ex=400, rng=None):
     '''
     Three mixture components, with nontrivial
     transition matrix. Values on the 3 by 3 SPD manifold.
@@ -631,13 +559,13 @@ def gen_ex12(num_ex=400, rng=None):
     if rng is None:
         rng = np.random.default_rng()
 
-    mean1 = np.eye(3)
-    mean2 = np.array([[1, .7, .49],
-                      [.7, 1, .7],
-                      [.49, .7, 1]])
-    mean3 = np.array([[1, .3, .09],
-                      [.3, 1, .3],
-                      [.09, .3, 1]])
+    mean1 = np.eye(3)*2
+    mean2 = np.array([[1, .8, .64], 
+                          [.8, 1, .8],
+                          [.64, .8, 1]])
+    mean3 = np.array([[1, .7, .49],                                        
+                          [.7, 1, .7],                                         
+                          [.49, .7, 1]])
 
     disp1 = disp2 = disp3 = 0.1
 
@@ -677,7 +605,7 @@ def gen_ex12(num_ex=400, rng=None):
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
             'A': A, 'phi': phi}
 
-def gen_ex13(num_ex=400, rng=None):
+def gen_ex12(num_ex=400, rng=None):
     '''
     Five mixture components, with nontrivial
     transition matrix. Values on the 2 by 2 SPD manifolds.
@@ -685,16 +613,16 @@ def gen_ex13(num_ex=400, rng=None):
     if rng is None:
         rng = np.random.default_rng()
 
-    mean1 = np.array([[1, 0],
-                      [0, 1]])
-    mean2 = np.array([[1, 0],
-                      [0, 20]])
-    mean3 = np.array([[20, 0],
-                      [0, 1]])
-    mean4 = np.array([[20, 0],
-                      [0, 20]])
-    mean5 = np.array([[50, 0 ],
-                      [0, 50]])
+    mean1 = np.array([[1., 0.],
+                      [0., 1.]])
+    mean2 = np.array([[1., 0.],
+                      [0., 20.]])
+    mean3 = np.array([[20., 0.],
+                      [0., 1.]])
+    mean4 = np.array([[20., 0.],
+                      [0., 20.]])
+    mean5 = np.array([[50., 0.],
+                      [0., 50.]])
 
     disp1 = disp2 = disp3 = disp4 = disp5 = .5
 
@@ -746,83 +674,13 @@ def gen_ex13(num_ex=400, rng=None):
             'A': A, 'phi': phi}
 
 
-def gen_ex14(num_ex=400, rng=None):
-    '''
-    Five mixture components, with nontrivial
-    transition matrix. Values on the 2 by 2 SPD manifolds.
-    '''
-    if rng is None:
-        rng = np.random.default_rng()
-
-    mean1 = np.array([[1.646, 0.056],
-                      [0.056, 2.379]])
-    mean2 = np.array([[2.294,0.744],
-                      [0.744,1.415]])
-    mean3 = np.array([[2.631,-0.127],
-                      [-0.127,1.277]])
-    mean4 = np.array([[0.674,0.454],
-                      [0.454,2.056]])
-    mean5 = np.array([[1.829,-0.919],
-                      [-0.919,1.602]])
-
-    disp1 = disp2 = disp3 = disp4 = disp5 = .1
-
-    A = np.array([[.3, .1, .2, .1, .3],
-                  [.1, .4, .2, .2, .1],
-                  [.2, .2, .3, .1, .2],
-                  [.1, .1, .2, .5, .1],
-                  [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
-
-    # Construct the Markov chain:
-    x = []
-    init_dist = [1/5, 1/5, 1/5, 1/5, 1/5]
-    curr_state = rng.multinomial(1, init_dist, size=1)
-    curr_state = np.argmax(curr_state, axis=1)[0]
-    x.append(curr_state)
-    for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
-        curr_state = np.argmax(curr_state, axis=1)[0]
-        x.append(curr_state)
-
-    # Construct the observations:
-    y1 = randSPDGauss.randSPDGauss(mean1, disp1, num_ex, rng=rng)
-    y1 = [y1[:,:,i] for i in range(y1.shape[2])]
-    y2 = randSPDGauss.randSPDGauss(mean2, disp2, num_ex, rng=rng)
-    y2 = [y2[:,:,i] for i in range(y2.shape[2])]
-    y3 = randSPDGauss.randSPDGauss(mean3, disp3, num_ex, rng=rng)
-    y3 = [y3[:,:,i] for i in range(y3.shape[2])]
-    y4 = randSPDGauss.randSPDGauss(mean4, disp4, num_ex, rng=rng)
-    y4 = [y4[:,:,i] for i in range(y4.shape[2])]
-    y5 = randSPDGauss.randSPDGauss(mean5, disp5, num_ex, rng=rng)
-    y5 = [y5[:,:,i] for i in range(y5.shape[2])]
-        
-    y = []
-    for xi in x:
-        if xi == 0:
-            y.append(y1.pop())
-        elif xi == 1:
-            y.append(y2.pop())
-        elif xi == 2:
-            y.append(y3.pop())
-        elif xi == 3:
-            y.append(y4.pop())
-        else:
-            assert xi == 4
-            y.append(y5.pop())
-
-    return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
-
-def evaluate(m, y, label, fit_B_phi=True):
-    m.partial_fit(y, fit_B_phi)
-
+def compute_loss(m, label):
     true_centroids = np.array([l[0] for l in label['B']])
     pred_centroids = np.array([p[0] for p in m.B_params])
     true_disp = np.array([l[1] for l in label['B']])
     pred_disp = np.array([p[1] for p in m.B_params])
     true_trans_mat = label['A']
-    pred_trans_mat = m.A_hat
+    pred_trans_mat = m.A_hat.copy()
 
     perm = match_permutation(true_centroids, pred_centroids, m.A_hat.shape[0], m.compute_dist)
     pred_centroids = pred_centroids[perm]
@@ -836,12 +694,16 @@ def evaluate(m, y, label, fit_B_phi=True):
     logger.info('The fitted centroids are : \n{}'.format(pred_centroids))
     logger.info('The true dispersions are : \n{}'.format(true_disp))
     logger.info('The fitted dispersions are : \n{}'.format(pred_disp))
-    logger.info('The true transition matrix is : \n{}'.format(label['A']))
-    logger.info('The fitted transition matrix is : \n{}'.format(m.A_hat))
-    logger.info(f"The Frob diff of true - pred transition matrices is {np.linalg.norm(m.A_hat - label['A'], 'fro')}")
+    logger.info('The true transition matrix is : \n{}'.format(true_trans_mat))
+    logger.info('The fitted transition matrix is : \n{}'.format(pred_trans_mat))
+    logger.info(f"The Frob diff of true - pred transition matrices is {np.linalg.norm(true_trans_mat - pred_trans_mat, 'fro')}")
     logger.info('The true stationary distribution is : \n{}'.format(label['phi']))
     logger.info('The fitted stationary distribution is : \n{}'.format(pred_phi))
 
+def evaluate(m, y, label, fit_B_phi=True):
+    m.partial_fit(y, fit_B_phi)
+    compute_loss(m, label)
+    
 
 def main():
     rng = np.random.default_rng(2022)
@@ -853,11 +715,11 @@ def main():
     # m1 = SPDGaussianHMM(S=1, p=3, rng=rng)
     # evaluate(m1, y1, label1)
 
-    # logger.info('Start testing on ex 2.')
+    # logger.info('Start testing on ex 2, using extensions.')
     # y2, label2 = gen_ex2(num_ex=10000, rng=rng)
-    # m2 = SPDGaussianHMM(S=2, p=3, max_lag=1, num_samples_sigma=10000, num_samples_K=10000, rng=rng)
-    # # m2.B_params, m2.phi = label2['B'], np.array(label2['phi'])
-    # evaluate(m2, y2, label2, fit_B_phi=True)
+    # m2 = SPD_EM_GaussianHMM(S=2, max_lag=1, num_samples_K=10000, p=3, rng=rng) 
+    # m2.B_params, m2.phi = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['phi']).copy()
+    # evaluate(m2, y2, label2, fit_B_phi=False)
 
     # logger.info('Start testing on ex 3.')
     # y3, label3 = gen_ex3(num_ex=1000, rng=rng)
@@ -881,17 +743,14 @@ def main():
 
     logger.info('Start testing on ex 7.')
     y7, label7 = gen_ex7(num_ex=10000, rng=rng)
-    m7 = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=10000, rng=rng)
+    m7 = PoincareDiskGaussianHMM(S=3, max_lag=2, num_samples_K=10000, rng=rng)
     evaluate(m7, y7, label7, fit_B_phi=True)
 
-    # logger.info('Start testing on ex 8.')
-    # y8, label8 = gen_ex8(num_ex=10000, rng=rng)
-    # m8 = SPDGaussianHMM(
-    #     S=5, p=2, max_lag=1, num_samples_K=1000, rng=rng, 
-    #     num_samples_sigma=1000, num_samples_sigma_prime=1000,
-    #     num_samples_sigma_prime_prime=1000)
-    # m8.B_params, m8.phi = label8['B'], np.array(label8['phi'])
-    # evaluate(m8, y8, label8, fit_B_phi=False)
+    # logger.info('Start testing on ex 8, using extensions.')
+    # y8, label8 = gen_ex8(num_ex=10000, rng=rng) #700
+    # m8 = SPD_EM_GaussianHMM(S=5, p=2, max_lag=1, num_samples_K=10000, rng=rng, num_omit_MCMC=100)
+    # # m8.B_params, m8.phi = [[B_i[0].copy(), B_i[1]] for B_i in label8['B']], np.array(label8['phi']).copy()
+    # evaluate(m8, y8, label8, fit_B_phi=True)
 
     # logger.info('Start testing on ex 9.')
     # y9, label9 = gen_ex9(num_ex=100000, rng=rng)
@@ -900,31 +759,20 @@ def main():
 
     # logger.info('Start testing on ex 10.')
     # y10, label10 = gen_ex10(num_ex=10000, rng=rng)
-    # m10 = EuclideanGaussianHMM(S=5, max_lag=3)
+    # m10 = PoincareDiskGaussianHMM(S=5, max_lag=3, num_samples_K=10000, rng=rng)
     # evaluate(m10, y10, label10)
 
     # logger.info('Start testing on ex 11.')
-    # y11, label11 = gen_ex11(num_ex=10000, rng=rng)
-    # m11 = PoincareDiskGaussianHMM(S=5, max_lag=3, num_samples_K=10000, rng=rng)
-    # evaluate(m11, y11, label11)
+    # y11, label11 = gen_ex11(num_ex=1000, rng=rng)
+    # m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng)
+    # m11.B_params, m11.phi = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['phi'])
+    # evaluate(m11, y11, label11, fit_B_phi=False)
 
     # logger.info('Start testing on ex 12.')
     # y12, label12 = gen_ex12(num_ex=3000, rng=rng)
-    # m12 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=3000, rng=rng)
-    # m12.B_params, m12.phi = label12['B'], np.array(label12['phi'])
+    # m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=3000, rng=rng, alpha=.5)
+    # m12.B_params, m12.phi = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['phi']).copy()
     # evaluate(m12, y12, label12, fit_B_phi=False)
-
-    # logger.info('Start testing on ex 13.')
-    # y13, label13 = gen_ex13(num_ex=3000, rng=rng)
-    # m13 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=10000, rng=rng, alpha=.5)
-    # m13.B_params, m13.phi = label13['B'], np.array(label13['phi'])
-    # evaluate(m13, y13, label13, fit_B_phi=False)
-
-    # logger.info('Start testing on ex 14.')
-    # y14, label14 = gen_ex14(num_ex=3000, rng=rng)
-    # m14 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=3000, rng=rng)
-    # m14.B_params, m14.phi = label14['B'], np.array(label14['phi'])
-    # evaluate(m14, y14, label14, fit_B_phi=False)
 
 
 if __name__ == "__main__":

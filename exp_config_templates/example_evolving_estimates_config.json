@@ -1,0 +1,14 @@
+{
+	"experiment": "test",
+	"seed": 2022,
+	"given_true": false,
+	"SPD_dim": 2,
+	"num_hidden_states": 5,
+	"num_obs": 10,
+	"learner": {
+		"name": "SPDGaussianHMM",
+		"max_lag": 3,
+		"num_samples_K": 10
+	}
+
+}

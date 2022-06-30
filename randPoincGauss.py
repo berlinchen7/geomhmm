@@ -17,7 +17,6 @@ def generate_r(sigma, num_samples, rng):
     r, _ = utils.mhsample(1, num_samples, pdf, proppdf, proprnd, rng)
     return r
 
-
 def randPoincGauss(Ybar, sigma, N, rng=None, omit=100):
     """ Generate N samples from a Poincare-disk-valued Gaussian with mean Ybar and dispersion gamma."""
     if rng is None:
@@ -40,7 +39,6 @@ def randPoincGauss(Ybar, sigma, N, rng=None, omit=100):
     # Transform to a list of torch tensors
     ret = np.stack((ret.real, ret.imag), axis=-1)
     return [torch.tensor(x) for x in ret]
-
 
 def plot(samples):
     import seaborn as sns

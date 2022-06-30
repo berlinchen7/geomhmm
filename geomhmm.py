@@ -2,6 +2,7 @@ import numpy as np
 import math
 import scipy
 import logging
+from time import perf_counter
 from tqdm import tqdm
 
 from sklearn.base import BaseEstimator
@@ -86,8 +87,7 @@ class _BaseGaussianHMM(BaseEstimator):
         # print(f"sigma is {sigma} dist is {dist},  norm factor is {norm_factor}")
 
         return math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor
-
-        # return max(math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor, 2.2e-16)
+        # return max(math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor, np.spacing(1))
 
     def update_hat_H(self, y):
         """Update current estimate for hat H."""
@@ -137,7 +137,7 @@ class _BaseGaussianHMM(BaseEstimator):
                         
                         self.H_hat[t, i, j] += curr_B_1*curr_B_2
                 self.H_N[t] += 1
-            self.H_hat[t, :, :] /= self.H_N[t]
+            self.H_hat[t, :, :] /= max(self.H_N[t], 1)
 
     def update_hat_K(self):
         pass
@@ -165,6 +165,12 @@ class _BaseGaussianHMM(BaseEstimator):
         sol = solvers.qp(P, q, G, h, A, b, verbose=False)
         pi_hat_inf = np.array(sol['x']).reshape(self.S)
         X_hat.append(np.diag(pi_hat_inf))
+
+        # Uncomment the following line to use the
+        # phi estimated obtained from the mixture
+        # estimation step, as opposed to the convex
+        # optimization solution above:
+        # X_hat.append(np.diag(self.phi))
 
         # Solving for (19) in Matila et al., 2020:
         for tau in range(1, self.max_lag + 1):
@@ -209,27 +215,35 @@ class _BaseGaussianHMM(BaseEstimator):
         y : list of observed values
             In the case of SPD matices, the values are numpy array of shape (self.S, self.S)
         fit_B_phi: bool.
-
         """
+        self.fit_B_phi = fit_B_phi
 
         if fit_B_phi:
             # In the case when self.N < self.S, we want to
             # initialize the centroids and leave the other parameters intact:
             if self.N < self.S:
                 offset = self.N
-                while self.N < self.S:
-                    curr_y = y[self.N - offset]
-                    self.B_params[self.N][0] = curr_y
+                for y_index, S_index in enumerate(range(offset, self.S)):
+                    curr_y = y[0] # if we use y.pop(0), then y is modified in-place
+                    y = y[1:]
+                    self.B_params[S_index][0] = curr_y
+                    self.obs_cache.append(curr_y)
                     self.N += 1
-                y = y[self.N - offset:]
-                if len(y) == 0:
-                    return
+                    if len(y) == 0:
+                        return   
 
-            logger.info('Partial fit on phi and B started.')
             # Update B hat and phi hat.
+            logger.info('Partial fit on phi and B started.')
+            t_mixture_start = perf_counter()
+            logger.info('Timer for fitting mixture model started.')
             self.update_phi_B(y)
+            t_mixture_end = perf_counter()
+            logger.info('Timer for fitting mixture model ended.')
+            logger.info(f"Fitting the mixture model takes {t_mixture_end-t_mixture_start} seconds.")
             logger.info('Partial fit on phi and B ended.')
-    
+
+        t_trans_mat_start = perf_counter()
+        logger.info('Timer for fitting transition matrix started.')
         logger.info('Partial fit on H started.')
         # Update H hat:
         self.update_hat_H(y)
@@ -244,7 +258,11 @@ class _BaseGaussianHMM(BaseEstimator):
         # Update A hat:
         self.update_hat_A()
         logger.info('Partial fit on A ended.')
-
+        t_trans_mat_end = perf_counter()
+        logger.info('Timer for fitting transition matrix ended.')
+        logger.info(f"Fitting the transition matrix takes {t_trans_mat_end-t_trans_mat_start} seconds.")
+        if fit_B_phi:
+            logger.info(f"Total runtime for fitting HMM given the current batch of obs is {t_trans_mat_end-t_mixture_start} seconds.")
 
         # Finally, update obs_cache and N:
         for y_i in y:
@@ -271,7 +289,8 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
                  init_B_params=None,
 
                  gm_random_state=0,
-                 p=1): 
+                 p=1,
+                 ): 
         super().__init__(max_lag, S, N, init_B_params)
         if init_B_params is None:
             self.B_params = [[np.zeros(p), np.eye(p)] for i in range(self.S)]
@@ -535,11 +554,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
 
     Notes
     -----
-    - Currently does not support p-by-p SPD manifolds where p > 3,
-      since haven't figured out how to systematically compute
-      an orthonormal basis, where the first basis has trace zero.
+    - Currently does not support p-by-p SPD manifolds where p > 3.
     - The normalization constant is computed by MC estimation,
       which is slow. So we can speed up by using, e.g., caching.
+    - To keep the Zanini algorithm numerically stable,
+      Tikhonov-regularized inverses are utilized to control the
+      condition number of the matrices.
     """
     def __init__(self, 
                  max_lag=3, 
@@ -555,7 +575,9 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                  num_samples_sigma_prime=400,
                  num_samples_sigma_prime_prime=400,
 
-                 min_sigma=2.2e-16): 
+                 min_sigma=np.spacing(1),
+                 num_omit_MCMC=10000,
+                 ): 
 
         super().__init__(max_lag, S, N, init_B_params, rng)
 
@@ -582,7 +604,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
 
         # Hard lower bound on the estimate for the dispersion parameter:
         self.min_sigma = min_sigma
-
+        # Number of initial values to ignore in the MCMC sampling of SPD matrices:
+        self.num_omit_MCMC = num_omit_MCMC
 
 
     def compute_updated_phi(self, y_i, gamma_Np1):
@@ -669,7 +692,6 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         for k in range(self.S):
             # Translate the orthonormal frame to the tangent space of y_i:
             # (See p. 90 of Medical Image Analysis by Pennec et al.)
-            # P_sqrt = scipy.linalg.sqrtm(self.B_params[k][0])
             P_sqrt = SPD_sqrt(self.B_params[k][0])
             on_basis_transported = [P_sqrt @ Ei @ P_sqrt for Ei in self.on_basis]
     
@@ -702,7 +724,6 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             u_1 = self.h[k]/(sigma_k**2)
             u_1 *= y_k_N_1 - y_Np1_1
 
-            # P_sqrt = scipy.linalg.sqrtm(y_k_N_2)
             P_sqrt = SPD_sqrt(y_k_N_2)
             # We use Tikhonov regularized inverse b/c P_sqrt may have
             # very small eigenvalues:
@@ -731,17 +752,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
 
             # Finally, store the updated centroid (c.f. eqns (9) (10) of Zanini et al., 2017):
             y_k_Np1_1 = y_k_N_1 - xi_1_Np1
-            # print('u_2_mat; xi_2_Np1_mat; P_sqrt_inv:')
-            # print(u_2_mat)
-            # print(xi_2_Np1_mat)
-            # print(P_sqrt_inv)
             y_k_Np1_2 = P_sqrt @ scipy.linalg.expm(P_sqrt_inv @ xi_2_Np1_mat @ P_sqrt_inv) @ P_sqrt
-
-            # The debug prints below was helpful:
-            #print('P_sqrt; YkN2; Y_k_2:')
-            #print(P_sqrt)
-            #print(y_k_N_2)
-            #print(self.B_params[k][0])
 
             y_k_Np1 = self.compute_irr_decomp_inv(y_k_N_1 - xi_1_Np1, 
                                     P_sqrt @ scipy.linalg.expm(P_sqrt_inv @ xi_2_Np1_mat @ P_sqrt_inv) @ P_sqrt)
@@ -774,7 +785,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             #       abs(eta_k_Np1) for now:
             if eta_k_Np1 >= 0:
                 eta_k_Np1 = -1*eta_k_Np1
-#                raise RuntimeError('hat eta_{}^(N+1) is {}, which is not negative.'.format(k, eta_k_Np1))
+                # raise RuntimeError('hat eta_{}^(N+1) is {}, which is not negative.'.format(k, eta_k_Np1))
             sigma_k_Np1 = np.sqrt(-1/(2*eta_k_Np1))
             ret.append(max(sigma_k_Np1, self.min_sigma))
         return ret
@@ -978,6 +989,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         Currently using Standard Monte Carlo, but may derive close form of
         the integral in specific cases.
         """
+
+        # If self.B_params doesn't change and self.K_hat has been learned,
+        # the estimate for K should be the same:
+        if not self.fit_B_phi and np.sum(self.K_hat) != 0:
+            return
+
         numSamples = self.num_samples_K
 
         for i in tqdm(range(self.S), desc='  i', position=0):
@@ -989,7 +1006,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                 sj = self.B_params[j][1]
 
                 numSamples_i = int(numSamples/2)
-                samples_i = randSPDGauss.randSPDGauss(ci, si, numSamples_i, rng=self.rng)
+                samples_i = randSPDGauss.randSPDGauss(ci, si, numSamples_i, rng=self.rng, omit=self.num_omit_MCMC)
                 samples_i = [samples_i[:,:,k] for k in range(numSamples_i)]
                 curr_K_integrand = []
                 for sample in samples_i:
@@ -997,7 +1014,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                 curr_K_est_i = np.mean(np.array(curr_K_integrand))
 
                 numSamples_j = numSamples - numSamples_i
-                samples_j = randSPDGauss.randSPDGauss(cj, sj, numSamples_j, rng=self.rng)
+                samples_j = randSPDGauss.randSPDGauss(cj, sj, numSamples_j, rng=self.rng, omit=self.num_omit_MCMC)
                 samples_j = [samples_j[:,:,k] for k in range(numSamples_j)]
                 curr_K_integrand = []
                 for sample in samples_j:
@@ -1009,14 +1026,3 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         # Reflect the the upper triangular part of K_hat across the diagonal, as K_hat is
         # a priori a symmetric matrix:
         self.K_hat[np.tril_indices(self.S, k=-1)] = self.K_hat.T[np.tril_indices(self.S, k=-1)] 
-
-
-def main():
-    m = SPDGaussianHMM()
-    a = np.eye(2)*2
-    y = randSPDGauss.randSPDGauss(a, 1, 100)
-    obs = [y[:,:,i] for i in range(y.shape[2])]
-    m.partial_fit(obs)
-
-if __name__ == "__main__":
-    main()

@@ -1,33 +1,14 @@
-import numpy as np
 import itertools
 import math
+import numpy as np
 
-def mhsample_rs(start, nsamples, pdf, proprnd, rng=None):                                                      
-    """                                                                                                    
-    Metropolis-Hastings with random sampler.                                                         
-                                                                                                           
-    """      
-    if rng is None:
-    	rng = np.random.default_rng()
 
-    x = start                                                                                              
-    accepted = []                                                                                          
-    rejected = []                                                                                          
-    while len(accepted) <= nsamples:                                                                       
-        x_ =  proprnd(x)     
-        A = min(1, pdf(x_)/(pdf(x)))                                         
-        u = rng.random()                                                           
-        if u <= A:                                                                                         
-            x = x_                                                                                         
-            accepted.append(x)                                                                             
-        else:                                                                                              
-            rejected.append(x)                                                                             
-    return np.array(accepted), np.array(rejected), x
-
-def mhsample(start, nsamples, pdf, proppdf, proprnd, rng=None, max_tries=1e10):
+def mhsample(start, nsamples, pdf, proppdf, proprnd, rng=None, max_tries=5e5):
     """
     Metropolis-Hastings sampler.
 
+    Note:
+    - proppdf(x, y) = P(x | y), NOT P(y | x).
     """
     if rng is None:
     	rng = np.random.default_rng()
@@ -64,7 +45,8 @@ def compute_PD_dist(X, Y):
 def compute_PD_norm_factor(sigma):
     """
     Formula taken from:
-    S. Said, L. Bombrun, and Y. Berthoumieu. New riemannian priors on the univariate normal model."""
+    S. Said, L. Bombrun, and Y. Berthoumieu. New riemannian priors on the univariate normal model.
+    """
     const = (2*math.pi)*((math.pi*.5)**.5)
     exp = math.exp(.5*(sigma**2))
     erf = math.erf(sigma/(2**(.5)))
@@ -111,7 +93,6 @@ def SPD_ize(M):
 
 def SPD_sqrt(M, check_SPD=False, proj_to_SPD=True):
 	"""Compute the square root of a SPD matrix. 
-
 	"""
 	if check_SPD:
 		assert(is_SPD(M))
@@ -141,7 +122,7 @@ def unifpdf(x, lower, upper):
         return 1/(upper - lower)
 
 def match_permutation(true, predicted, num_states, dist):
-    ''' Find the permutation that minimizes the average distance between true and predicted
+    ''' Find the permutation that minimizes the average distance between true and predicted.
     '''
     curr_min_cost, curr_min_permutation = float('inf'), None
     for perm in itertools.permutations(np.arange(num_states)):
