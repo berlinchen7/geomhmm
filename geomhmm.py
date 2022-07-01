@@ -19,7 +19,8 @@ from utils import SPD_sqrt
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
 
-# Comment out below if you don't want to see progress outputs:
+# Comment out below if you don't want to see logging at this level 
+# (you may still see logging at the subprocess level):
 console_handler = logging.StreamHandler()
 formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
 console_handler.setFormatter(formatter)

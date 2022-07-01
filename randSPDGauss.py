@@ -286,7 +286,7 @@ def generate_r_MALA(gamma, num_samples, rng, tau, omit):
 
 
 
-def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100000):
+def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=None):
     if rng is None:
         rng = np.random.default_rng()
     Y = np.zeros((2, 2, N))
@@ -298,6 +298,7 @@ def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100000):
 
     # Generate log of ratio of eigen
     # values of Y, r. This uses MCMC:
+    omit = omit or 100000
     r = generate_r_RW(gamma, N, rng, omit)
     # r = generate_r_MALA(gamma, N, rng, .0001, omit)
 
@@ -322,7 +323,7 @@ def randSPDGauss_p2(Ybar, gamma, N, rng=None, omit=100000):
 
     return Y
 
-def randSPDGauss(Ybar, gamma, N, rng=None, omit=100000):
+def randSPDGauss(Ybar, gamma, N, rng=None, omit=None):
     """ Generate N samples from a Gaussian SPD manifold with mean Ybar and dispersion gamma.
 
         Ybar: numpy array
@@ -336,10 +337,11 @@ def randSPDGauss(Ybar, gamma, N, rng=None, omit=100000):
 
     Y = np.zeros((p, p, N))
 
+    omit = omit or 1000
     # r = generate_ri_RW(gamma, p, N, rng, omit, delta=.006)
     # r = generate_ri_MALA(gamma, p, N, rng, .0001, omit=1000)
     # r = generate_ri_Gibbs_MALA(gamma, p, N, rng, .001, omit=1000)
-    r = generate_ri_Gibbs_RW(gamma, p, N, rng, omit=1000)
+    r = generate_ri_Gibbs_RW(gamma, p, N, rng, omit)
 
     for i in range(N):
         theta = ortho_group.rvs(p, random_state=rng)

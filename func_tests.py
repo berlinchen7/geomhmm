@@ -13,11 +13,18 @@ import randPoincGauss
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.INFO)
 
-# Comment out below if you don't want to see progress outputs:
+# Comment out below if you don't want to see logging at this level 
+# (you may still see logging at the subprocess level):
 console_handler = logging.StreamHandler()
 formatter = logging.Formatter('[%(levelname)s %(asctime)s %(module)s] %(message)s')
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler) 
+
+# Comment out below if you want to assess deprecation/future warnings:
+import warnings
+warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 def gen_ex1(num_ex=1000, rng=None):
     '''
@@ -616,15 +623,15 @@ def gen_ex12(num_ex=400, rng=None):
     mean1 = np.array([[1., 0.],
                       [0., 1.]])
     mean2 = np.array([[1., 0.],
-                      [0., 20.]])
-    mean3 = np.array([[20., 0.],
+                      [0., 2.]])
+    mean3 = np.array([[2., 0.],
                       [0., 1.]])
-    mean4 = np.array([[20., 0.],
-                      [0., 20.]])
-    mean5 = np.array([[50., 0.],
-                      [0., 50.]])
+    mean4 = np.array([[2., 0.],
+                      [0., 2.]])
+    mean5 = np.array([[3., 0.],
+                      [0., 3.]])
 
-    disp1 = disp2 = disp3 = disp4 = disp5 = .5
+    disp1 = disp2 = disp3 = disp4 = disp5 = 1
 
     A = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
@@ -753,26 +760,26 @@ def main():
     # evaluate(m8, y8, label8, fit_B_phi=True)
 
     # logger.info('Start testing on ex 9.')
-    # y9, label9 = gen_ex9(num_ex=100000, rng=rng)
-    # m9 = EuclideanGaussianHMM(S=5, max_lag=10)
+    # y9, label9 = gen_ex9(num_ex=1000, rng=rng)
+    # m9 = EuclideanGaussianHMM(S=5, max_lag=3)
     # evaluate(m9, y9, label9)
 
     # logger.info('Start testing on ex 10.')
-    # y10, label10 = gen_ex10(num_ex=10000, rng=rng)
-    # m10 = PoincareDiskGaussianHMM(S=5, max_lag=3, num_samples_K=10000, rng=rng)
+    # y10, label10 = gen_ex10(num_ex=100, rng=rng)
+    # m10 = PoincareDiskGaussianHMM(S=5, max_lag=2, num_samples_K=100, rng=rng)
     # evaluate(m10, y10, label10)
 
     # logger.info('Start testing on ex 11.')
-    # y11, label11 = gen_ex11(num_ex=1000, rng=rng)
-    # m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng)
-    # m11.B_params, m11.phi = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['phi'])
-    # evaluate(m11, y11, label11, fit_B_phi=False)
+    # y11, label11 = gen_ex11(num_ex=100, rng=rng)
+    # m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng, num_omit_MCMC=100)
+    # # m11.B_params, m11.phi = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['phi'])
+    # evaluate(m11, y11, label11, fit_B_phi=True)
 
     # logger.info('Start testing on ex 12.')
-    # y12, label12 = gen_ex12(num_ex=3000, rng=rng)
-    # m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=3000, rng=rng, alpha=.5)
+    # y12, label12 = gen_ex12(num_ex=100, rng=rng)
+    # m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=30, rng=rng, num_omit_MCMC=100)
     # m12.B_params, m12.phi = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['phi']).copy()
-    # evaluate(m12, y12, label12, fit_B_phi=False)
+    # evaluate(m12, y12, label12, fit_B_phi=True)
 
 
 if __name__ == "__main__":
