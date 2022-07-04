@@ -1,14 +1,13 @@
-import numpy as np
 import math
-import scipy
 import logging
 from time import perf_counter
 from tqdm import tqdm
 
+import numpy as np
+import scipy
 from sklearn.base import BaseEstimator
 from sklearn.mixture import GaussianMixture
 from cvxopt import matrix, solvers
-
 import torch
 import geoopt
 

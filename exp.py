@@ -1,4 +1,7 @@
-import shutil, os, json, sys
+import shutil
+import os
+import json
+import sys
 import argparse
 import logging
 import time

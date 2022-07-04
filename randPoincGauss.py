@@ -1,7 +1,10 @@
-import numpy as np
 import math
-import utils
+
+import numpy as np
 import torch
+
+import utils
+
 
 def generate_r(sigma, num_samples, rng):
     ''' Generate the radius component of random samples.

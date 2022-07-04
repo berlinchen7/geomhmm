@@ -748,10 +748,10 @@ def main():
     # m6 = EuclideanGaussianHMM(S=3, p=1, max_lag=3)
     # evaluate(m6, y6, label6)
 
-    # logger.info('Start testing on ex 7.')
-    # y7, label7 = gen_ex7(num_ex=10000, rng=rng)
-    # m7 = PoincareDiskGaussianHMM(S=3, max_lag=2, num_samples_K=10000, rng=rng)
-    # evaluate(m7, y7, label7, fit_pi_inf_B=True)
+    logger.info('Start testing on ex 7.')
+    y7, label7 = gen_ex7(num_ex=10000, rng=rng)
+    m7 = PoincareDiskGaussianHMM(S=3, max_lag=2, num_samples_K=10000, rng=rng)
+    evaluate(m7, y7, label7, fit_pi_inf_B=True)
 
     # logger.info('Start testing on ex 8, using extensions.')
     # y8, label8 = gen_ex8(num_ex=10000, rng=rng) #700
@@ -759,39 +759,27 @@ def main():
     # # m8.B_params, m8.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label8['B']], np.array(label8['pi_inf_hat']).copy()
     # evaluate(m8, y8, label8, fit_pi_inf_B=True)
 
-    logger.info('Start testing on ex 9.')
-    y9, label9 = gen_ex9(num_ex=1000, rng=rng)
-    m9 = EuclideanGaussianHMM(S=5, max_lag=3)
-    evaluate(m9, y9, label9)
+    # logger.info('Start testing on ex 9.')
+    # y9, label9 = gen_ex9(num_ex=1000, rng=rng)
+    # m9 = EuclideanGaussianHMM(S=5, max_lag=3)
+    # evaluate(m9, y9, label9)
 
-    logger.info('Start testing on ex 10.')
-    y10, label10 = gen_ex10(num_ex=100, rng=rng)
-    m10 = PoincareDiskGaussianHMM(S=5, max_lag=2, num_samples_K=100, rng=rng)
-    evaluate(m10, y10, label10)
+    # logger.info('Start testing on ex 10.')
+    # y10, label10 = gen_ex10(num_ex=100, rng=rng)
+    # m10 = PoincareDiskGaussianHMM(S=5, max_lag=2, num_samples_K=100, rng=rng)
+    # evaluate(m10, y10, label10)
 
-    logger.info('Start testing on ex 11.')
-    y11, label11 = gen_ex11(num_ex=100, rng=rng)
-    m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng, num_omit_MCMC=100)
-    # m11.B_params, m11.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['pi_inf_hat'])
-    evaluate(m11, y11, label11, fit_pi_inf_B=True)
+    # logger.info('Start testing on ex 11.')
+    # y11, label11 = gen_ex11(num_ex=100, rng=rng)
+    # m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng, num_omit_MCMC=100)
+    # # m11.B_params, m11.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['pi_inf_hat'])
+    # evaluate(m11, y11, label11, fit_pi_inf_B=True)
 
-    logger.info('Start testing on ex 12.')
-    y12, label12 = gen_ex12(num_ex=100, rng=rng)
-    m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=30, rng=rng, num_omit_MCMC=100)
-    m12.B_params, m12.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['pi_inf_hat']).copy()
-    evaluate(m12, y12, label12, fit_pi_inf_B=True)
-
-    logger.info('Start testing on ex 2, using extensions.')
-    y2, label2 = gen_ex2(num_ex=100, rng=rng)
-    m2 = SPD_Zanini_Simple_GaussianHMM(S=2, p=3, rng=rng) 
-    m2.B_params, m2.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['pi_inf_hat']).copy()
-    evaluate(m2, y2, label2, fit_pi_inf_B=True)
-
-    logger.info('Start testing on ex 2, using extensions.')
-    y2, label2 = gen_ex2(num_ex=100, rng=rng)
-    m2 = SPD_EM_Simple_GaussianHMM(S=2, p=3, rng=rng) 
-    m2.B_params, m2.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['pi_inf_hat']).copy()
-    evaluate(m2, y2, label2, fit_pi_inf_B=True)
+    # logger.info('Start testing on ex 12.')
+    # y12, label12 = gen_ex12(num_ex=100, rng=rng)
+    # m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=30, rng=rng, num_omit_MCMC=100)
+    # m12.B_params, m12.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['pi_inf_hat']).copy()
+    # evaluate(m12, y12, label12, fit_pi_inf_B=True)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import numpy as np
 import math
 import utils
 from tqdm import tqdm
+
 # Somehow one cannot just do import scipy and call scipy.linalg.*
 import scipy.linalg as la 
 from scipy.stats import ortho_group
