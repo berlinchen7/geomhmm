@@ -77,10 +77,10 @@ def SPD_ize(M):
 	"""Return a copy of M that has been projected to the SPD manifold."""
 
 	ret = M.copy()
-	N = M.shape[0]
+	p = M.shape[0]
 
 	# Force symmetrize the matrix:
-	ret[np.tril_indices(N, k=-1)] = ret.T[np.tril_indices(N, k=-1)]
+	ret[np.tril_indices(p, k=-1)] = ret.T[np.tril_indices(p, k=-1)]
 
 	# Set negative eigenvalues to a small positive value: 
 	eigvals, eigvecs = np.linalg.eig(ret)

@@ -42,7 +42,7 @@ def gen_chain_Salem2021(num_ex=10000, rng=None):
     P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
-    phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
+    pi_inf_hat = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -70,7 +70,7 @@ def gen_chain_Salem2021(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_chain_Tupker2021(num_ex=10000, rng=None):
     if rng is None:
@@ -88,7 +88,7 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
     P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
-    phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
+    pi_inf_hat = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
 
     # Construct the Markov chain:
     x = []
@@ -116,7 +116,7 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_chain_2by2_N5(num_ex=400, rng=None):
     '''
@@ -144,7 +144,7 @@ def gen_chain_2by2_N5(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
+    pi_inf_hat = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -184,7 +184,7 @@ def gen_chain_2by2_N5(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_chain_3by3_N2(num_ex=400, rng=None):
     '''
@@ -208,7 +208,7 @@ def gen_chain_3by3_N2(num_ex=400, rng=None):
     P = np.array([[.4, .6],
                   [.2, .8]])
 
-    phi = [.25, .75]
+    pi_inf_hat = [.25, .75]
 
     # Construct the Markov chain:
     x = []
@@ -229,7 +229,7 @@ def gen_chain_3by3_N2(num_ex=400, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
                       max_lag=3, num_samples_K=500, num_runs=20, seed=None):
@@ -261,9 +261,9 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
 
         m = PoincareDiskGaussianHMM(S=3, max_lag=max_lag, num_samples_K=num_samples_K, rng=rng)
         if given_true:
-            m.B_params, m.phi = label['B'], np.array(label['phi'])
+            m.B_params, m.pi_inf_hat = label['B'], np.array(label['pi_inf_hat'])
         start = time.time()
-        m.partial_fit(y, fit_B_phi=(not given_true))
+        m.partial_fit(y, fit_pi_inf_B=(not given_true))
         run_time = time.time() - start
 
         true_centroids = np.array([l[0] for l in label['B']])
@@ -346,9 +346,9 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./',
 
         m = PoincareDiskGaussianHMM(S=3, max_lag=5, num_samples_K=10000)
         if given_true:
-            m.B_params, m.phi = label['B'], np.array(label['phi'])
+            m.B_params, m.pi_inf_hat = label['B'], np.array(label['pi_inf_hat'])
         start = time.time()
-        m.partial_fit(y, fit_B_phi=(not given_true))
+        m.partial_fit(y, fit_pi_inf_B=(not given_true))
         run_time = time.time() - start
 
         true_centroids = np.array([l[0] for l in label['B']])
@@ -473,7 +473,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
                 'mean': true_param[0].copy().flatten().tolist(),
                 'dispersion': true_param[1]
             }
-    true_params_content['stat_dist'] = label['phi']
+    true_params_content['stat_dist'] = label['pi_inf_hat']
     with open(true_params_fname, 'w') as f:
         json.dump(true_params_content, f, indent=4)
 
@@ -481,11 +481,11 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
     obs_fname = f"{out_dirname}/obs.csv"
     obs_content = {}
     if "PoincareDisk" in config['learner']['name']:
-        obs_content["N_1"], obs_content["N_2"] = [], []
+        obs_content["y_1"], obs_content["y_2"] = [], []
     else:
         for i in range(config['SPD_dim']):
             for j in range(config['SPD_dim']):
-                obs_content[f"N_{i}{j}"] = []
+                obs_content[f"y_{i}{j}"] = []
 
     est_trans_mat_fname = f"{out_dirname}/est_trans_mat.csv"
     est_trans_mat_content = {}
@@ -525,7 +525,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
             num_samples_K=config['learner']['num_samples_K'], 
             rng=rng)
         if config['given_true']:
-            m.B_params, m.phi = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     elif config['learner']['name'] == 'SPD_EM_GaussianHMM':
         m = SPD_EM_GaussianHMM(
             S=config['num_hidden_states'], 
@@ -539,7 +539,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
         if not config['given_true']:
             # Since EM can't fit incrementally, we fit the parameters right away here
             # and store the results:
-            m.partial_fit(y, fit_B_phi=True)
+            m.partial_fit(y, fit_pi_inf_B=True)
             for k in range(config['num_hidden_states']):
                 est_params_content[f"d{k}"].append(m.B_params[k][1])
                 for i in range(config['SPD_dim']):
@@ -549,14 +549,14 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
             save_to_csv(est_params_content, est_guassian_params_fname)
 
             # Reset the internal states of m:
-            m.N = 0
+            m.D = 0
             m.H_hat = np.zeros([m.max_lag + 1, m.S, m.S])
-            m.H_N = np.zeros(m.max_lag + 1) # Number of samples used to estimate H_hat
+            m.D_H = np.zeros(m.max_lag + 1) # Number of samples used to estimate H_hat
             m.obs_cache = []
 
             config['given_true'] = True
         else:
-            m.B_params, m.phi = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     elif config['learner']['name'] == 'PoincareDiskGaussianHMM':
         m = PoincareDiskGaussianHMM(
             S=config['num_hidden_states'], 
@@ -564,7 +564,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
             num_samples_K=config['learner']['num_samples_K'], 
             rng=rng)
         if config['given_true']:
-            m.B_params, m.phi = [[B_i[0].clone(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].clone(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     else:
         raise ValueError('Invalid name for the geometric HMM learner.')
 
@@ -584,8 +584,8 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
 
         # Observation and mean:
         if "PoincareDisk" in config['learner']['name']:
-            obs_content["N_1"].append(y_i[0].item())
-            obs_content["N_2"].append(y_i[1].item())
+            obs_content["y_1"].append(y_i[0].item())
+            obs_content["y_2"].append(y_i[1].item())
             if not config['given_true']:
                 for k in range(config['num_hidden_states']):
                     if m.B_params[k][0] is not None:
@@ -597,7 +597,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
         else:
             for i in range(config['SPD_dim']):
                 for j in range(config['SPD_dim']):
-                    obs_content[f"N_{i}{j}"].append(y_i[i, j])
+                    obs_content[f"y_{i}{j}"].append(y_i[i, j])
                     if not config['given_true']:
                         for k in range(config['num_hidden_states']):
                             est_params_content[f"c{k}_{i}{j}"].append(m.B_params[k][0][i, j])
@@ -667,7 +667,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
                 'mean': true_param[0].copy().flatten().tolist(),
                 'dispersion': true_param[1]
             }
-    true_params_content['stat_dist'] = label['phi']
+    true_params_content['stat_dist'] = label['pi_inf_hat']
     with open(true_params_fname, 'w') as f:
         json.dump(true_params_content, f, indent=4)
 
@@ -675,11 +675,11 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
     obs_fname = f"{out_dirname}/obs.csv"
     obs_content = {}
     if "PoincareDisk" in config['learner']['name']:
-        obs_content["N_1"], obs_content["N_2"] = [], []
+        obs_content["y_1"], obs_content["y_2"] = [], []
     else:
         for i in range(config['SPD_dim']):
             for j in range(config['SPD_dim']):
-                obs_content[f"N_{i}{j}"] = []
+                obs_content[f"y_{i}{j}"] = []
 
     est_trans_mat_fname = f"{out_dirname}/est_trans_mat.csv"
     est_trans_mat_content = {}
@@ -719,7 +719,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
             num_samples_K=config['learner']['num_samples_K'], 
             rng=rng)
         if config['given_true']:
-            m.B_params, m.phi = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     elif config['learner']['name'] == 'SPD_EM_GaussianHMM':
         m = SPD_EM_GaussianHMM(
             S=config['num_hidden_states'], 
@@ -731,7 +731,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
         if not config['given_true']:
             # Since EM can't fit incrementally, we fit the parameters right away here
             # and store the results:
-            m.partial_fit(y, fit_B_phi=True)
+            m.partial_fit(y, fit_pi_inf_B=True)
             for k in range(config['num_hidden_states']):
                 est_params_content[f"d{k}"].append(m.B_params[k][1])
                 for i in range(config['SPD_dim']):
@@ -741,14 +741,14 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
             save_to_csv(est_params_content, est_guassian_params_fname)
 
             # Reset the internal states of m:
-            m.N = 0
+            m.D = 0
             m.H_hat = np.zeros([m.max_lag + 1, m.S, m.S])
-            m.H_N = np.zeros(m.max_lag + 1) # Number of samples used to estimate H_hat
+            m.D_H = np.zeros(m.max_lag + 1) # Number of samples used to estimate H_hat
             m.obs_cache = []
 
             config['given_true'] = True
         else:
-            m.B_params, m.phi = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     elif config['learner']['name'] == 'PoincareDiskGaussianHMM':
         m = PoincareDiskGaussianHMM(
             S=config['num_hidden_states'], 
@@ -756,7 +756,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
             num_samples_K=config['learner']['num_samples_K'], 
             rng=rng)
         if config['given_true']:
-            m.B_params, m.phi = [[B_i[0].clone(), B_i[1]] for B_i in label['B']], np.array(label['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].clone(), B_i[1]] for B_i in label['B']], np.array(label['pi_inf_hat']).copy()
     else:
         raise ValueError('Invalid name for the geometric HMM learner.')
 
@@ -774,8 +774,8 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
     # Observation and mean:
     for y_index, y_i in enumerate(y):
         if "PoincareDisk" in config['learner']['name']:
-            obs_content["N_1"].append(y_i[0].item())
-            obs_content["N_2"].append(y_i[1].item())
+            obs_content["y_1"].append(y_i[0].item())
+            obs_content["y_2"].append(y_i[1].item())
             if not config['given_true'] and y_index == 0:
                 for k in range(config['num_hidden_states']):
                     if m.B_params[k][0] is not None:
@@ -787,7 +787,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
         else:
             for i in range(config['SPD_dim']):
                 for j in range(config['SPD_dim']):
-                    obs_content[f"N_{i}{j}"].append(y_i[i, j])
+                    obs_content[f"y_{i}{j}"].append(y_i[i, j])
                     if not config['given_true'] and y_index == 0:
                         for k in range(config['num_hidden_states']):
                             est_params_content[f"c{k}_{i}{j}"].append(m.B_params[k][0][i, j])
@@ -856,7 +856,7 @@ def sensitivity_analysis(input_config='in.json', output_path='./'):
                 'mean': true_param[0].copy().flatten().tolist(),
                 'dispersion': true_param[1]
             }
-    true_params_content['stat_dist'] = label['phi']
+    true_params_content['stat_dist'] = label['pi_inf_hat']
     with open(true_params_fname, 'w') as f:
         json.dump(true_params_content, f, indent=4)
 
@@ -893,7 +893,7 @@ def sensitivity_analysis(input_config='in.json', output_path='./'):
                 max_lag=config['learner']['max_lag'], 
                 num_samples_K=config['learner']['num_samples_K'], 
                 rng=rng)
-            m.B_params, m.phi = [[B_i[0].copy(), B_i[1]] for B_i in label14['B']], np.array(label14['phi']).copy()
+            m.B_params, m.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label14['B']], np.array(label14['pi_inf_hat']).copy()
             m.B_params[0][0][0, 0] = set_perturb_val(mean_perturb)
             m.partial_fit(y, True)
             # Compute Loss

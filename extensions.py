@@ -24,18 +24,18 @@ class _Base_StoEM_GaussianHMM(_BaseGaussianHMM):
     described in 
     Stochastic EM Algorithm for Mixture Estimation on Manifolds 
     by Zanini et al., 2017, and the transition matrix is learned using
-    Matila et al., 2020.
+    Mattila et al., 2020.
     """
     def __init__(self, 
                  max_lag=3, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
                  ): 
-        super().__init__(max_lag=max_lag, S=S, N=N, init_B_params=init_B_params, rng=rng)
+        super().__init__(max_lag=max_lag, S=S, D=D, init_B_params=init_B_params, rng=rng)
 
-    def update_phi_B(self, y):
+    def update_pi_inf_B(self, y):
         raise NotImplementedError
 
 
@@ -47,25 +47,25 @@ class _Base_Simple_GaussianHMM(_BaseGaussianHMM):
     """
     def __init__(self, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
                  curr_sum_P_hat=None,
                  prev_state=None,
                  ): 
-        super().__init__(max_lag=1, S=S, N=N, init_B_params=init_B_params, rng=rng)
+        super().__init__(max_lag=1, S=S, D=D, init_B_params=init_B_params, rng=rng)
 
         # Initializing the current sum of the transition probabilities:
         self.curr_sum_P_hat = np.zeros((self.S, self.S)) if not curr_sum_P_hat else curr_sum_P_hat
         self.prev_state = prev_state # The most recent hidden state.
         self.curr_obs = [] # Cache the observations passed into "partial_fit"
 
-    def update_hat_H(self, y):
+    def update_H_hat(self, y):
         self.curr_obs = y
         logger.info('Skipped, since we are doing a simple count estimation of P.')
 
-    def update_hat_K(self):
+    def update_K_hat(self):
         logger.info('Skipped, since we are doing a simple count estimation of P.')
 
     def find_closest_hidden_state(self, yi, return_min_value=False):
@@ -110,7 +110,7 @@ class _Base_Simple_GaussianHMM(_BaseGaussianHMM):
 class SPD_GD_GaussianHMM(SPDGaussianHMM):
     """ 
     Learner the SPD-valued HMM with Gaussian emission probabilities,
-    where the transition matrix is learned using Matila et al., 2020,
+    where the transition matrix is learned using Mattila et al., 2020,
     and the Gaussian parameters are learned using Riemannian gradient descent.
 
     NOTE: currently the gradient descent step uses the Matlab code developed by Salem Said
@@ -120,7 +120,7 @@ class SPD_GD_GaussianHMM(SPDGaussianHMM):
     def __init__(self, 
                  max_lag=1,
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
@@ -138,7 +138,7 @@ class SPD_GD_GaussianHMM(SPDGaussianHMM):
             self, 
             max_lag=max_lag, 
             S=S, 
-            N=N, 
+            D=D, 
             init_B_params=init_B_params,
             rng=rng,
 
@@ -158,7 +158,7 @@ class SPD_GD_GaussianHMM(SPDGaussianHMM):
         self.matlab = matlab
         _ = self.eng.addpath("CodeForMixRiemGauss/SGD_test_dimGenerale/") # Assign to _ o/w prints out the paths
 
-    def update_phi_B(self, y):
+    def update_pi_inf_B(self, y):
         inp_y = np.zeros((self.p, self.p, len(y)))
         for i in range(len(y)):
             inp_y[:, :, i] = y[i]
@@ -168,14 +168,14 @@ class SPD_GD_GaussianHMM(SPDGaussianHMM):
             sigma = np.sqrt(-2*eta[i, 0])
             self.B_params[i][0], self.B_params[i][1] = Ybar[:, :, i], sigma
 
-        self.phi = w_sqrt**2
-        self.phi = self.phi.flatten()
+        self.pi_inf_hat = w_sqrt**2
+        self.pi_inf_hat = self.pi_inf_hat.flatten()
 
 
 class SPD_EM_GaussianHMM(SPDGaussianHMM):
     """ 
     Learner the SPD-valued HMM with Gaussian emission probabilities,
-    where the transition matrix is learned using Matila et al., 2020,
+    where the transition matrix is learned using Mattila et al., 2020,
     and the Gaussian parameters are learned using expectation maximization.
 
     NOTE: currently the EM step uses the Matlab code developed by Salem Said
@@ -185,7 +185,7 @@ class SPD_EM_GaussianHMM(SPDGaussianHMM):
     def __init__(self, 
                  max_lag=1,
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
@@ -199,7 +199,7 @@ class SPD_EM_GaussianHMM(SPDGaussianHMM):
             self, 
             max_lag=max_lag, 
             S=S, 
-            N=N, 
+            D=D, 
             init_B_params=init_B_params,
             rng=rng,
 
@@ -219,7 +219,7 @@ class SPD_EM_GaussianHMM(SPDGaussianHMM):
 
         self.Zeta_tabule = self.eng.choix_Zeta("gaussien", "notcomplex", "spline")
 
-    def update_phi_B(self, y):
+    def update_pi_inf_B(self, y):
         inp_y = np.zeros((self.p, self.p, len(y)))
         for i in range(len(y)):
             inp_y[:, :, i] = y[i]
@@ -235,7 +235,7 @@ class SPD_EM_GaussianHMM(SPDGaussianHMM):
         for i in range(self.S):
             self.B_params[i][0], self.B_params[i][1] = Ybar[:, :, i], sigma[0, i]
 
-        self.phi = w.flatten()
+        self.pi_inf_hat = w.flatten()
 
 
 class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
@@ -249,7 +249,7 @@ class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
     def __init__(
         self, 
         S=3, 
-        N=0, 
+        D=0, 
         init_B_params=None,
         rng=None,
 
@@ -276,7 +276,7 @@ class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
         _Base_Simple_GaussianHMM.__init__(
             self, 
             S=S, 
-            N=N, 
+            D=D, 
             init_B_params=init_B_params, 
             rng=rng,
 
@@ -288,7 +288,7 @@ class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
             self, 
             max_lag=1, 
             S=S, 
-            N=N, 
+            D=D, 
             init_B_params=init_B_params,
             rng=rng,
 
@@ -317,7 +317,7 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
     """
     def __init__(self, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
@@ -330,7 +330,7 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
                  ):
         self.EM_learner = SPD_EM_GaussianHMM(
                  S=S, 
-                 N=N, 
+                 D=D, 
                  init_B_params=init_B_params,
                  rng=rng,
 
@@ -341,7 +341,7 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
         SPD_Zanini_Simple_GaussianHMM.__init__(
                 self,
                 S=S, 
-                N=N, 
+                D=D, 
                 init_B_params=init_B_params,
                 rng=rng,
 
@@ -351,9 +351,9 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
                 p=p, 
             )
 
-    def update_phi_B(self, y):
-        self.EM_learner.update_phi_B(y)
-        EM_B, EM_phi = self.EM_learner.B_params, self.EM_learner.phi
-        self.B_params, self.phi = [[B_i[0].copy(), B_i[1]] for B_i in EM_B], EM_phi.copy()
+    def update_pi_inf_B(self, y):
+        self.EM_learner.update_pi_inf_B(y)
+        EM_B, EM_pi_inf_hat = self.EM_learner.B_params, self.EM_learner.pi_inf_hat
+        self.B_params, self.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in EM_B], EM_pi_inf_hat.copy()
 
 

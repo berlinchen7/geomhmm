@@ -42,9 +42,9 @@ def gen_ex1(num_ex=1000, rng=None):
     y = randSPDGauss.randSPDGauss(true_mean, true_disp, num_ex, rng=rng)
     y = [y[:,:,i] for i in range(y.shape[2])]
 
-    phi = [1]
+    pi_inf_hat = [1]
 
-    return y, {'B': [[true_mean, true_disp]], 'P': true_trans_mat, 'phi': phi}
+    return y, {'B': [[true_mean, true_disp]], 'P': true_trans_mat, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex2(num_ex=200, rng=None):
     '''
@@ -71,7 +71,7 @@ def gen_ex2(num_ex=200, rng=None):
     P = np.array([[.4, .6],
                   [.2, .8]])
 
-    phi = [.25, .75]
+    pi_inf_hat = [.25, .75]
 
     # Construct the Markov chain:
     x = []
@@ -92,7 +92,7 @@ def gen_ex2(num_ex=200, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex3(num_ex=400, rng=None):
     '''
@@ -118,7 +118,7 @@ def gen_ex3(num_ex=400, rng=None):
     P = np.array([[.6, .1, .3],
                   [.1, .7, .2],
                   [.2, .2, .6]])
-    phi = [.2759, .3448, .3793] # This is the approximate solution.
+    pi_inf_hat = [.2759, .3448, .3793] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -149,7 +149,7 @@ def gen_ex3(num_ex=400, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex4(num_ex=200, rng=None):
     '''
@@ -169,7 +169,7 @@ def gen_ex4(num_ex=200, rng=None):
     P = np.array([[.4, .6],
                   [.2, .8]])
 
-    phi = [.25, .75]
+    pi_inf_hat = [.25, .75]
 
     # Construct the Markov chain:
     x = []
@@ -196,7 +196,7 @@ def gen_ex4(num_ex=200, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex5(num_ex=10000, rng=None):
     '''
@@ -220,7 +220,7 @@ def gen_ex5(num_ex=10000, rng=None):
     P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
-    phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
+    pi_inf_hat = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
 
     # Construct the Markov chain:
     x = []
@@ -248,7 +248,7 @@ def gen_ex5(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex6(num_ex=10000, rng=None):
     '''
@@ -270,7 +270,7 @@ def gen_ex6(num_ex=10000, rng=None):
     P = np.array([[.6, .1, .3],
                   [.1, .7, .2],
                   [.2, .2, .6]])
-    phi = [.2759, .3448, .3793] # This is the approximate solution.
+    pi_inf_hat = [.2759, .3448, .3793] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -300,7 +300,7 @@ def gen_ex6(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex7(num_ex=1000, rng=None):
     '''
@@ -325,7 +325,7 @@ def gen_ex7(num_ex=1000, rng=None):
     P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
-    phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
+    pi_inf_hat = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -353,7 +353,7 @@ def gen_ex7(num_ex=1000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex8(num_ex=400, rng=None):
     '''
@@ -381,7 +381,7 @@ def gen_ex8(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
+    pi_inf_hat = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -421,7 +421,7 @@ def gen_ex8(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex9(num_ex=400, rng=None):
     '''
@@ -452,7 +452,7 @@ def gen_ex9(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
+    pi_inf_hat = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -489,7 +489,7 @@ def gen_ex9(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex10(num_ex=400, rng=None):
     '''
@@ -519,7 +519,7 @@ def gen_ex10(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
+    pi_inf_hat = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -554,7 +554,7 @@ def gen_ex10(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex11(num_ex=400, rng=None):
     '''
@@ -579,7 +579,7 @@ def gen_ex11(num_ex=400, rng=None):
     P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
-    phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
+    pi_inf_hat = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -610,7 +610,7 @@ def gen_ex11(num_ex=400, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 def gen_ex12(num_ex=400, rng=None):
     '''
@@ -638,7 +638,7 @@ def gen_ex12(num_ex=400, rng=None):
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
                   [.4, .1, .1, .1, .3]])
-    phi = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
+    pi_inf_hat = [0.22744361, 0.17132116, 0.19924812, 0.19522019, 0.20676692] # This is the approximate solution.
 
     # Construct the Markov chain:
     x = []
@@ -678,7 +678,7 @@ def gen_ex12(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'P': P, 'phi': phi}
+            'P': P, 'pi_inf_hat': pi_inf_hat}
 
 
 def compute_loss(m, label):
@@ -695,7 +695,7 @@ def compute_loss(m, label):
     true_centroids = np.array(true_centroids)
     pred_disp = pred_disp[perm]
     pred_trans_mat = permute_matrix(pred_trans_mat, perm)
-    pred_phi = np.array(m.phi)[perm]
+    pred_pi_inf = np.array(m.pi_inf_hat)[perm]
  
     logger.info('The true centroids are : \n{}'.format(true_centroids))
     logger.info('The fitted centroids are : \n{}'.format(pred_centroids))
@@ -704,11 +704,11 @@ def compute_loss(m, label):
     logger.info('The true transition matrix is : \n{}'.format(true_trans_mat))
     logger.info('The fitted transition matrix is : \n{}'.format(pred_trans_mat))
     logger.info(f"The Frob diff of true - pred transition matrices is {np.linalg.norm(true_trans_mat - pred_trans_mat, 'fro')}")
-    logger.info('The true stationary distribution is : \n{}'.format(label['phi']))
-    logger.info('The fitted stationary distribution is : \n{}'.format(pred_phi))
+    logger.info('The true stationary distribution is : \n{}'.format(label['pi_inf_hat']))
+    logger.info('The fitted stationary distribution is : \n{}'.format(pred_pi_inf))
 
-def evaluate(m, y, label, fit_B_phi=True):
-    m.partial_fit(y, fit_B_phi)
+def evaluate(m, y, label, fit_pi_inf_B=True):
+    m.partial_fit(y, fit_pi_inf_B)
     compute_loss(m, label)
     
 
@@ -725,8 +725,8 @@ def main():
     # logger.info('Start testing on ex 2, using extensions.')
     # y2, label2 = gen_ex2(num_ex=10000, rng=rng)
     # m2 = SPD_EM_GaussianHMM(S=2, max_lag=1, num_samples_K=10000, p=3, rng=rng) 
-    # m2.B_params, m2.phi = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['phi']).copy()
-    # evaluate(m2, y2, label2, fit_B_phi=False)
+    # m2.B_params, m2.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['pi_inf_hat']).copy()
+    # evaluate(m2, y2, label2, fit_pi_inf_B=False)
 
     # logger.info('Start testing on ex 3.')
     # y3, label3 = gen_ex3(num_ex=1000, rng=rng)
@@ -748,38 +748,50 @@ def main():
     # m6 = EuclideanGaussianHMM(S=3, p=1, max_lag=3)
     # evaluate(m6, y6, label6)
 
-    logger.info('Start testing on ex 7.')
-    y7, label7 = gen_ex7(num_ex=10000, rng=rng)
-    m7 = PoincareDiskGaussianHMM(S=3, max_lag=2, num_samples_K=10000, rng=rng)
-    evaluate(m7, y7, label7, fit_B_phi=True)
+    # logger.info('Start testing on ex 7.')
+    # y7, label7 = gen_ex7(num_ex=10000, rng=rng)
+    # m7 = PoincareDiskGaussianHMM(S=3, max_lag=2, num_samples_K=10000, rng=rng)
+    # evaluate(m7, y7, label7, fit_pi_inf_B=True)
 
     # logger.info('Start testing on ex 8, using extensions.')
     # y8, label8 = gen_ex8(num_ex=10000, rng=rng) #700
     # m8 = SPD_EM_GaussianHMM(S=5, p=2, max_lag=1, num_samples_K=10000, rng=rng, num_omit_MCMC=100)
-    # # m8.B_params, m8.phi = [[B_i[0].copy(), B_i[1]] for B_i in label8['B']], np.array(label8['phi']).copy()
-    # evaluate(m8, y8, label8, fit_B_phi=True)
+    # # m8.B_params, m8.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label8['B']], np.array(label8['pi_inf_hat']).copy()
+    # evaluate(m8, y8, label8, fit_pi_inf_B=True)
 
-    # logger.info('Start testing on ex 9.')
-    # y9, label9 = gen_ex9(num_ex=1000, rng=rng)
-    # m9 = EuclideanGaussianHMM(S=5, max_lag=3)
-    # evaluate(m9, y9, label9)
+    logger.info('Start testing on ex 9.')
+    y9, label9 = gen_ex9(num_ex=1000, rng=rng)
+    m9 = EuclideanGaussianHMM(S=5, max_lag=3)
+    evaluate(m9, y9, label9)
 
-    # logger.info('Start testing on ex 10.')
-    # y10, label10 = gen_ex10(num_ex=100, rng=rng)
-    # m10 = PoincareDiskGaussianHMM(S=5, max_lag=2, num_samples_K=100, rng=rng)
-    # evaluate(m10, y10, label10)
+    logger.info('Start testing on ex 10.')
+    y10, label10 = gen_ex10(num_ex=100, rng=rng)
+    m10 = PoincareDiskGaussianHMM(S=5, max_lag=2, num_samples_K=100, rng=rng)
+    evaluate(m10, y10, label10)
 
-    # logger.info('Start testing on ex 11.')
-    # y11, label11 = gen_ex11(num_ex=100, rng=rng)
-    # m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng, num_omit_MCMC=100)
-    # # m11.B_params, m11.phi = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['phi'])
-    # evaluate(m11, y11, label11, fit_B_phi=True)
+    logger.info('Start testing on ex 11.')
+    y11, label11 = gen_ex11(num_ex=100, rng=rng)
+    m11 = SPDGaussianHMM(S=3, p=3, max_lag=3, num_samples_K=30, rng=rng, num_omit_MCMC=100)
+    # m11.B_params, m11.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label11['B']], np.array(label11['pi_inf_hat'])
+    evaluate(m11, y11, label11, fit_pi_inf_B=True)
 
-    # logger.info('Start testing on ex 12.')
-    # y12, label12 = gen_ex12(num_ex=100, rng=rng)
-    # m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=30, rng=rng, num_omit_MCMC=100)
-    # m12.B_params, m12.phi = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['phi']).copy()
-    # evaluate(m12, y12, label12, fit_B_phi=True)
+    logger.info('Start testing on ex 12.')
+    y12, label12 = gen_ex12(num_ex=100, rng=rng)
+    m12 = SPDGaussianHMM(S=5, p=2, max_lag=1, num_samples_K=30, rng=rng, num_omit_MCMC=100)
+    m12.B_params, m12.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label12['B']], np.array(label12['pi_inf_hat']).copy()
+    evaluate(m12, y12, label12, fit_pi_inf_B=True)
+
+    logger.info('Start testing on ex 2, using extensions.')
+    y2, label2 = gen_ex2(num_ex=100, rng=rng)
+    m2 = SPD_Zanini_Simple_GaussianHMM(S=2, p=3, rng=rng) 
+    m2.B_params, m2.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['pi_inf_hat']).copy()
+    evaluate(m2, y2, label2, fit_pi_inf_B=True)
+
+    logger.info('Start testing on ex 2, using extensions.')
+    y2, label2 = gen_ex2(num_ex=100, rng=rng)
+    m2 = SPD_EM_Simple_GaussianHMM(S=2, p=3, rng=rng) 
+    m2.B_params, m2.pi_inf_hat = [[B_i[0].copy(), B_i[1]] for B_i in label2['B']], np.array(label2['pi_inf_hat']).copy()
+    evaluate(m2, y2, label2, fit_pi_inf_B=True)
 
 
 if __name__ == "__main__":

@@ -27,23 +27,31 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler) 
 
 class _BaseGaussianHMM(BaseEstimator):
-    """Base class for the geometric HMM with Gaussian emission probabilities."""
+    """Base class for the geometric HMM with Gaussian emission probabilities.
+
+    NOTE: we denote the number of hidden states as S, as opposed to N. The reason is
+    that, because the "N" in the Zanini et al., 2017 paper denotes the
+    number of observations ("D" in our case), and that our implementation of
+    the Zanini et al. method (mostly) follows their notations for easy reference, using
+    N for the number of hidden states probably causes more confusion 
+    than denoting it as some other letter, namely S.
+    """
     def __init__(self, 
                  max_lag=4, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None
                  ): 
 
         ## Meta variables:
-        self.max_lag = max_lag # Max lag parameter used for the moment-matching, i.e., $\bar\tau$ in Matila et al., 2020.
+        self.max_lag = max_lag # Max lag parameter used for the moment-matching, i.e., $\bar\tau$ in Mattila et al., 2020.
         self.S = S # Number of hidden states.
-        self.N = N # Total number of examples seen.
+        self.D = D # Total number of examples seen.
 
         ## Variables to be learned:
-        # phi denotes the stationary distribution; initialized to uniform:
-        self.phi = np.ones(self.S)/self.S
+        # pi_inf_hat denotes the estimated stationary distribution; initialized to uniform:
+        self.pi_inf_hat = np.ones(self.S)/self.S
         self.P_hat = np.zeros([self.S, self.S]) # Transition matrix
         # B_params parametrizes the Gaussian mixture, represented as a list
         # of [centroid, dispersion]:
@@ -54,7 +62,7 @@ class _BaseGaussianHMM(BaseEstimator):
 
         ## Variables needed to compute P_hat:
         self.H_hat = np.zeros([self.max_lag + 1, self.S, self.S])
-        self.H_N = np.zeros(self.max_lag + 1) # Number of samples used to estimate H_hat
+        self.D_H = np.zeros(self.max_lag + 1) # Number of samples used to estimate H_hat
         self.K_hat = np.zeros([self.S, self.S])
         # Cached observations used to compute H hat:
         self.obs_cache = []
@@ -66,7 +74,7 @@ class _BaseGaussianHMM(BaseEstimator):
             self.rng = rng
 
 
-    def update_phi_B(self, y):
+    def update_pi_inf_B(self, y):
         pass
 
     def compute_dist(self, X, Y):
@@ -90,8 +98,8 @@ class _BaseGaussianHMM(BaseEstimator):
         return math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor
         # return max(math.exp(-(dist**2)/(2*(sigma**2)))/norm_factor, np.spacing(1))
 
-    def update_hat_H(self, y):
-        """Update current estimate for hat H."""
+    def update_H_hat(self, y):
+        """Update current estimate for H_hat."""
 
         len_new_obs = len(y)
         y = self.obs_cache + y
@@ -102,7 +110,7 @@ class _BaseGaussianHMM(BaseEstimator):
         cached_B = cached_B.tolist()
 
         # For t = 0: 
-        self.H_hat[0, :, :] *= self.H_N[0]
+        self.H_hat[0, :, :] *= self.D_H[0]
         for k in tqdm(range(len_new_obs), desc="  Compute B(y, i)"):
             for i in range(self.S):
                 if cached_B[offset+k][i] == -1:
@@ -111,12 +119,12 @@ class _BaseGaussianHMM(BaseEstimator):
                 else:
                     curr_B = cached_B[offset+k][i]
                 self.H_hat[0, i, i] += curr_B
-            self.H_N[0] += 1
-        self.H_hat[0, :, :] /= self.H_N[0]
+            self.D_H[0] += 1
+        self.H_hat[0, :, :] /= self.D_H[0]
 
         # For t = 1, ..., self.max_lag:
         for t in range(1, self.max_lag+1):
-            self.H_hat[t, :, :] *= self.H_N[t]
+            self.H_hat[t, :, :] *= self.D_H[t]
             for k in range(len_new_obs):
                 if offset + k - t < 0: # In case obs_cache is too small (i.e., offset + k < t)
                     continue
@@ -137,10 +145,10 @@ class _BaseGaussianHMM(BaseEstimator):
                             curr_B_2 = cached_B[t_minus_tau_i[0]][t_minus_tau_i[1]]
                         
                         self.H_hat[t, i, j] += curr_B_1*curr_B_2
-                self.H_N[t] += 1
-            self.H_hat[t, :, :] /= max(self.H_N[t], 1)
+                self.D_H[t] += 1
+            self.H_hat[t, :, :] /= max(self.D_H[t], 1)
 
-    def update_hat_K(self):
+    def update_K_hat(self):
         pass
 
     def update_P_hat(self):
@@ -150,11 +158,10 @@ class _BaseGaussianHMM(BaseEstimator):
         https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
         '''
 
-        # The following is the "A hat" in Matila et al., 2020, which we rename to X_hat:
-        X_hat = []
+        A_hat = [] # "A hat" in Mattila et al., 2020.
         solvers.options['show_progress'] = False
 
-        # Solving for (17) in Matila et al., 2020:
+        # Solving for (17) in Mattila et al., 2020:
         P = 2 * matrix(self.K_hat @ self.K_hat.T)
         q = -2 * matrix(self.K_hat @ self.H_hat[0, :, :].diagonal())
         G = -1 * matrix(np.eye(self.S))
@@ -164,18 +171,18 @@ class _BaseGaussianHMM(BaseEstimator):
 
         sol = solvers.qp(P, q, G, h, A, b, verbose=False)
         pi_hat_inf = np.array(sol['x']).reshape(self.S)
-        X_hat.append(np.diag(pi_hat_inf))
+        A_hat.append(np.diag(pi_hat_inf))
 
         # Uncomment the following line to use the
-        # phi estimated obtained from the mixture
+        # pi_inf_hat estimated obtained from the mixture
         # estimation step, as opposed to the convex
         # optimization solution above:
-        # X_hat.append(np.diag(self.phi))
+        # A_hat.append(np.diag(self.pi_inf_hat))
 
-        # Solving for (19) in Matila et al., 2020:
+        # Solving for (19) in Mattila et al., 2020:
         for tau in range(1, self.max_lag + 1):
-            X_hat_tau_minus_one = X_hat[tau - 1].copy()
-            kron_prod = np.kron(self.K_hat.T, self.K_hat.T @ X_hat_tau_minus_one)
+            A_hat_tau_minus_one = A_hat[tau - 1].copy()
+            kron_prod = np.kron(self.K_hat.T, self.K_hat.T @ A_hat_tau_minus_one)
             P = 2 * matrix(kron_prod.T @ kron_prod)
             q = -2 * kron_prod.T @ self.H_hat[tau, :, :].flatten('F').T
             q = matrix(q)
@@ -187,15 +194,15 @@ class _BaseGaussianHMM(BaseEstimator):
             sol = solvers.qp(P, q, G, h, A, b, verbose=False)
             curr_sol = np.array(sol['x']).reshape(self.S * self.S)
             curr_sol = np.reshape(curr_sol, (self.S, self.S), order='F')
-            X_hat.append(X_hat_tau_minus_one @ curr_sol)
+            A_hat.append(A_hat_tau_minus_one @ curr_sol)
 
-        # Solving for (21) in Matila et al., 2020:
-        prev_X_hat = np.vstack(X_hat[:self.max_lag])
-        next_X_hat = np.vstack(X_hat[1:])
+        # Solving for (21) in Mattila et al., 2020:
+        prev_A_hat = np.vstack(A_hat[:self.max_lag])
+        next_A_hat = np.vstack(A_hat[1:])
 
-        kron_prod = np.kron(np.eye(self.S), prev_X_hat)
+        kron_prod = np.kron(np.eye(self.S), prev_A_hat)
         P = 2 * matrix(kron_prod.T @ kron_prod)
-        q = -2 * kron_prod.T @ next_X_hat.flatten('F')
+        q = -2 * kron_prod.T @ next_A_hat.flatten('F')
         q = matrix(q)
         G = matrix(-1 * np.eye(self.S * self.S))
         h = matrix(np.zeros(self.S * self.S))
@@ -207,51 +214,51 @@ class _BaseGaussianHMM(BaseEstimator):
         self.P_hat = np.reshape(curr_sol, (self.S, self.S), order='F')
 
 
-    def partial_fit(self, y, fit_B_phi=True):
+    def partial_fit(self, y, fit_pi_inf_B=True):
         """Incremental fit on a batch of samples.
 
         Parameters
         ----------
         y : list of observed values
             In the case of SPD matices, the values are numpy array of shape (self.S, self.S)
-        fit_B_phi: bool.
+        fit_pi_inf_B: bool.
         """
-        self.fit_B_phi = fit_B_phi
+        self.fit_pi_inf_B = fit_pi_inf_B
 
-        if fit_B_phi:
-            # In the case when self.N < self.S, we want to
+        if fit_pi_inf_B:
+            # In the case when self.D < self.S, we want to
             # initialize the centroids and leave the other parameters intact:
-            if self.N < self.S:
-                offset = self.N
+            if self.D < self.S:
+                offset = self.D
                 for y_index, S_index in enumerate(range(offset, self.S)):
                     curr_y = y[0] # if we use y.pop(0), then y is modified in-place
                     y = y[1:]
                     self.B_params[S_index][0] = curr_y
                     self.obs_cache.append(curr_y)
-                    self.N += 1
+                    self.D += 1
                     if len(y) == 0:
                         return   
 
-            # Update B hat and phi hat.
-            logger.info('Partial fit on phi and B started.')
+            # Update B hat and pi_inf_hat.
+            logger.info('Partial fit on pi_inf and B started.')
             t_mixture_start = perf_counter()
             logger.info('Timer for fitting mixture model started.')
-            self.update_phi_B(y)
+            self.update_pi_inf_B(y)
             t_mixture_end = perf_counter()
             logger.info('Timer for fitting mixture model ended.')
             logger.info(f"Fitting the mixture model took {t_mixture_end-t_mixture_start} seconds.")
-            logger.info('Partial fit on phi and B ended.')
+            logger.info('Partial fit on pi_inf and B ended.')
 
         t_trans_mat_start = perf_counter()
         logger.info('Timer for fitting transition matrix started.')
         logger.info('Partial fit on H started.')
         # Update H hat:
-        self.update_hat_H(y)
+        self.update_H_hat(y)
         logger.info('Partial fit on H ended.')
 
         logger.info('Partial fit on K started.')
         # Update K hat:
-        self.update_hat_K()
+        self.update_K_hat()
         logger.info('Partial fit on K ended.')
 
         logger.info('Partial fit on P started.')
@@ -261,15 +268,15 @@ class _BaseGaussianHMM(BaseEstimator):
         t_trans_mat_end = perf_counter()
         logger.info('Timer for fitting transition matrix ended.')
         logger.info(f"Fitting the transition matrix took {t_trans_mat_end-t_trans_mat_start} seconds.")
-        if fit_B_phi:
+        if fit_pi_inf_B:
             logger.info(f"Total runtime for fitting HMM given the current batch of obs is {t_trans_mat_end-t_mixture_start} seconds.")
 
-        # Finally, update obs_cache and N:
+        # Finally, update obs_cache and D:
         for y_i in y:
             self.obs_cache.append(y_i)
         self.obs_cache = self.obs_cache[-self.max_lag:]
 
-        self.N += len(y)
+        self.D += len(y)
 
     def find_cached_value(self, cache, arg, tolerance):
         """ Find cache[approx_arg], where |approx_arg - arg| < tolerance.
@@ -285,13 +292,13 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
     def __init__(self, 
                  max_lag=4, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
 
                  gm_random_state=0,
                  p=1,
                  ): 
-        super().__init__(max_lag, S, N, init_B_params)
+        super().__init__(max_lag, S, D, init_B_params)
         if init_B_params is None:
             self.B_params = [[np.zeros(p), np.eye(p)] for i in range(self.S)]
         else:
@@ -302,7 +309,7 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
         # online learning:
         self.gm = GaussianMixture(n_components=self.S, random_state=gm_random_state, warm_start=True)
 
-    def update_phi_B(self, y):
+    def update_pi_inf_B(self, y):
         ''' Use EM algo to fit an Euclidean Gaussian Mixture
         '''
         y = np.array(y)
@@ -311,7 +318,7 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
         covs = list(self.gm.covariances_.copy())
 
         self.B_params = list(zip(means, covs))
-        self.phi = self.gm.weights_.copy()
+        self.pi_inf_hat = self.gm.weights_.copy()
 
     def compute_dist(self, X, Y):
         """Compute the Euclidean distance.
@@ -333,8 +340,8 @@ class EuclideanGaussianHMM(_BaseGaussianHMM):
 
         return math.exp(-0.5 * diff.T @ np.linalg.inv(sigma) @ diff) / norm_factor
 
-    def update_hat_K(self):
-        """Update current estimate for hat K.
+    def update_K_hat(self):
+        """Update current estimate for K hat.
         
         Formula taken from (4.46) of:
         https://kth.diva-portal.org/smash/get/diva2:1428900/FULLTEXT01.pdf
@@ -354,26 +361,26 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
     def __init__(self, 
                  max_lag=4, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
                  num_samples_K=300,
                  ): 
-        super().__init__(max_lag, S, N, init_B_params, rng)
+        super().__init__(max_lag, S, D, init_B_params, rng)
         # Additional configurations needed for the Poincare Disk:
         self.PD = geoopt.PoincareBall()
         self.num_samples_K = num_samples_K
-        self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method update_phi().
+        self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method compute_updated_pi_inf_hat().
         self.on_basis = [.5*torch.tensor([1, 0]), .5*torch.tensor([0, 1])] # Initialize the orthonormal frame with respect to the identity matrix
 
 
-    def compute_updated_phi(self, y_i, gamma_Np1):
-        # Compute update of phi. See Zanini et al. 2017, eqn (6).
-        # (phi is denoted as omega in Zanini et al., but since we
-        # are also using phi as the stationary distribution of the
-        # HMM we denote it as phi).
-        sN = np.sqrt(self.phi)
+    def compute_updated_pi_inf_hat(self, y_i, gamma_Np1):
+        # Compute update of pi_inf_hat. See Zanini et al. 2017, eqn (6).
+        # (pi_inf_hat is denoted as omega in Zanini et al., but since we
+        # are also using pi_inf_hat as the stationary distribution of the
+        # HMM we denote it as pi_inf_hat).
+        sN = np.sqrt(self.pi_inf_hat)
         # Compute h_k:
         h = [(sN[i]**2)*self.compute_B(y_i, i) for i in range(self.S)]
         h = np.array(h)
@@ -387,7 +394,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
             sNp1 = sN
         else:
             sNp1 = sN*math.cos(norm_xi) + (h/sN - sN)*gamma_Np1*math.sin(norm_xi)/(norm_xi*2)
-        # Return updated phi:
+        # Return updated pi_inf_hat:
         return sNp1**2
 
     def compute_norm_factor_first_derivative(self, sigma):
@@ -406,7 +413,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
         for k in range(self.S):
             x_N_k = self.B_params[k][0].numpy()
             sigma_k = self.B_params[k][1] # This denotes $\hat\sigma_k^{(N)}$.
-            omega_k = self.phi[k] # This denotes $\hat\omega_k^{(N)}$.
+            omega_k = self.pi_inf_hat[k] # This denotes $\hat\omega_k^{(N)}$.
 
             # determine the orthonormal frame to the tangent space of y_i:
             x, y = x_N_k[0], x_N_k[1]
@@ -468,7 +475,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
             psi_prime_prime_eta_k_N += (sigma_k_N**6)*(zeta_prime_prime*zeta - (zeta_prime**2))/(zeta**2)
 
             dist_squared = self.compute_dist(self.B_params[k][0], y_i)**2
-            omega_k = self.phi[k]
+            omega_k = self.pi_inf_hat[k]
 
             eta_k_Np1 = dist_squared - psi_prime_eta_k_N
             eta_k_Np1 *= gamma_Np1*self.h[k]/(omega_k*psi_prime_prime_eta_k_N)
@@ -478,15 +485,28 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
             ret.append(sigma_k_Np1)
         return ret
 
-    def update_phi_B(self, y):
-        """Update current estimate for phi and B."""
+    def update_pi_inf_B(self, y):
+        """Update current estimate for pi_inf and B.
+
+        NOTE: 
+        - This implements the Titterington-based approach outlined in
+        _Riemannian Online Algorithms for Estimating Mixture Model Parameters_ by
+        Zanini et al., 2017.
+        - Hence, the variable names largely follow the notations used in the paper;
+        however, for the variables that overlap with the moment-based algorithm,
+        such as # of observations and the estimated stationary distribution,
+        we opt for the notation used in Chen et al., 2022.
+        - For convenience, we also dropped the bars and hats in our variable name
+        (so, e.g., eta_k_Np1_hat -> eta_k_Np1). The quantities that these variables
+        represent should be self-explanatory.
+        """
         for ind, y_i in enumerate(tqdm(y, desc='  Learning Gaussian mixture')):
             # TODO: Need to clarify the appropraite choice of gamma;
             #       for now follow eqn (9) of Titterington 1984
-            gamma_Np1 = (self.N+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
+            gamma_Np1 = (self.D+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
 
             # Compute update of the weights:
-            phi_Np1 = self.compute_updated_phi(y_i, gamma_Np1)
+            pi_inf_hat_Np1 = self.compute_updated_pi_inf_hat(y_i, gamma_Np1)
 
             # Compute update of a given centroid:
             y_Np1 = self.compute_updated_centroid(y_i, gamma_Np1)
@@ -494,7 +514,7 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
             # Compute update of the dispersion parameter eta:
             sigma_Np1 = self.compute_updated_sigma(y_i, gamma_Np1)
 
-            self.phi = phi_Np1
+            self.pi_inf_hat = pi_inf_hat_Np1
             for k in range(self.S):
                 self.B_params[k] = [y_Np1[k], sigma_Np1[k]]
 
@@ -512,8 +532,8 @@ class PoincareDiskGaussianHMM(_BaseGaussianHMM):
         erf = math.erf(sigma/(2**(.5)))
         return const*sigma*exp*erf
 
-    def update_hat_K(self):
-        """Update current estimate for hat K.
+    def update_K_hat(self):
+        """Update current estimate for K hat.
         
         Currently using Standard Monte Carlo, but may derive close form of
         the integral in specific cases.
@@ -564,7 +584,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
     def __init__(self, 
                  max_lag=3, 
                  S=3, 
-                 N=0, 
+                 D=0, 
                  init_B_params=None,
                  rng=None,
 
@@ -579,7 +599,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
                  num_omit_MCMC=10000,
                  ): 
 
-        super().__init__(max_lag, S, N, init_B_params, rng)
+        super().__init__(max_lag, S, D, init_B_params, rng)
 
         # Additional configurations needed for the SPD manifold:
         self.p = p # Speficify that it is a manifold of p by p SPD matrices.
@@ -592,8 +612,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         self.num_samples_sigma_prime = num_samples_sigma_prime
         self.num_samples_sigma_prime_prime = num_samples_sigma_prime_prime
 
-        ## Variables needed to compute phi and B:
-        self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method update_phi().
+        ## Variables needed to compute pi_inf_hat and B_params:
+        self.h = np.ones(self.S)/self.S # The "h" in Zanini et al., 2017; updated in the method compute_updated_pi_inf_hat().
         self.on_basis = [] # Orthonormal basis of some tangent space.
         self.alpha = alpha # Parameter for Tikhonov regularization, which is used in Tikhonov_inv().
 
@@ -608,12 +628,12 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         self.num_omit_MCMC = num_omit_MCMC
 
 
-    def compute_updated_phi(self, y_i, gamma_Np1):
-        # Compute update of phi. See Zanini et al. 2017, eqn (6).
-        # (phi is denoted as omega in Zanini et al., but since we
-        # are also using phi as the stationary distribution of the
-        # HMM we denote it as phi).
-        sN = np.sqrt(self.phi)
+    def compute_updated_pi_inf_hat(self, y_i, gamma_Np1):
+        # Compute update of pi_inf_hat. See Zanini et al. 2017, eqn (6).
+        # (pi_inf_hat is denoted as omega in Zanini et al., but since we
+        # are also using pi_inf_hat as the stationary distribution of the
+        # HMM we denote it as pi_inf_hat).
+        sN = np.sqrt(self.pi_inf_hat)
 
         # Compute h_k:
         h = [(sN[i]**2)*self.compute_B(y_i, i) for i in range(self.S)]
@@ -630,7 +650,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         else:
             sNp1 = sN*math.cos(norm_xi) + (h/sN - sN)*gamma_Np1*math.sin(norm_xi)/(norm_xi*2)
 
-        # Return updated phi:
+        # Return updated pi_inf_hat:
         return sNp1**2
 
     def Tikhonov_inv(self, A, alpha=.25):
@@ -698,7 +718,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             # Compute the Fisher information matrices:
             # (See expression (8) of Zanini et al., 2017)
             sigma_k = sigmas[k] # This denotes $\hat\sigma_k^{(N)}$.
-            omega_k = self.phi[k] # This denotes $\hat\omega_k^{(N)}$.
+            omega_k = self.pi_inf_hat[k] # This denotes $\hat\omega_k^{(N)}$.
             I_1 = omega_k/(sigma_k**2)
             # Note that we don't need to compute <., .> since the Fisher
             # Info matrix is with respect to an orthonormal basis.
@@ -775,7 +795,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             psi_prime_prime_eta_k_N += (sigma_k_N**6)*(zeta_prime_prime*zeta - (zeta_prime**2))/(zeta**2)
 
             dist_squared = self.compute_dist(self.B_params[k][0], y_i)**2
-            omega_k = self.phi[k]
+            omega_k = self.pi_inf_hat[k]
 
             eta_k_Np1 = dist_squared - psi_prime_eta_k_N
             eta_k_Np1 *= gamma_Np1*self.h[k]/(omega_k*psi_prime_prime_eta_k_N)
@@ -790,15 +810,28 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             ret.append(max(sigma_k_Np1, self.min_sigma))
         return ret
 
-    def update_phi_B(self, y):
-        """Update current estimate for phi and B."""
+    def update_pi_inf_B(self, y):
+        """Update current estimate for pi_inf_hat and B_params.
+
+        NOTE: 
+        - This implements the Titterington-based approach outlined in
+        _Riemannian Online Algorithms for Estimating Mixture Model Parameters_ by
+        Zanini et al., 2017.
+        - Hence, the variable names mostly follow the notations used in the paper;
+        however, for the variables that overlap with the moment-based algorithm,
+        such as # of observations and the estimated stationary distribution,
+        we opt for the notation used in Chen et al., 2022.
+        - For convenience, we also dropped the bars and hats in our variable name
+        (so, e.g., eta_k_Np1_hat -> eta_k_Np1). The quantities that these variables
+        represent should be self-explanatory.
+        """
         for ind, y_i in enumerate(tqdm(y, desc='  Learning Gaussian mixture')):
             # TODO: Need to clarify the appropraite choice of gamma;
             #       for now follow eqn (9) of Titterington 1984
-            gamma_Np1 = (self.N+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
+            gamma_Np1 = (self.D+ind+1)**(-1) # gammaNp1 denotes $\gamma^{(N+1)}$.
 
             # Compute update of the weights:
-            phi_Np1 = self.compute_updated_phi(y_i, gamma_Np1)
+            pi_inf_hat_Np1 = self.compute_updated_pi_inf_hat(y_i, gamma_Np1)
 
             # Compute update of a given centroid:
             y_Np1 = self.compute_updated_centroid(y_i, gamma_Np1)
@@ -806,7 +839,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
             # Compute update of the dispersion parameter eta:
             sigma_Np1 = self.compute_updated_sigma(y_i, gamma_Np1)
 
-            self.phi = phi_Np1
+            self.pi_inf_hat = pi_inf_hat_Np1
             for k in range(self.S):
                 self.B_params[k] = [y_Np1[k], sigma_Np1[k]]
 
@@ -983,8 +1016,8 @@ class SPDGaussianHMM(_BaseGaussianHMM):
         log_invXY = np.real(scipy.linalg.logm(np.linalg.inv(X)@Y))
         return np.real(sqrt_tr(log_invXY))
 
-    def update_hat_K(self):
-        """Update current estimate for hat K.
+    def update_K_hat(self):
+        """Update current estimate for K hat.
         
         Currently using Standard Monte Carlo, but may derive close form of
         the integral in specific cases.
@@ -992,7 +1025,7 @@ class SPDGaussianHMM(_BaseGaussianHMM):
 
         # If self.B_params doesn't change and self.K_hat has been learned,
         # the estimate for K should be the same:
-        if not self.fit_B_phi and np.sum(self.K_hat) != 0:
+        if not self.fit_pi_inf_B and np.sum(self.K_hat) != 0:
             return
 
         numSamples = self.num_samples_K
