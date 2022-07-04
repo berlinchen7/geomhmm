@@ -51,22 +51,22 @@ class _Base_Simple_GaussianHMM(_BaseGaussianHMM):
                  init_B_params=None,
                  rng=None,
 
-                 curr_sum_A=None,
+                 curr_sum_P_hat=None,
                  prev_state=None,
                  ): 
         super().__init__(max_lag=1, S=S, N=N, init_B_params=init_B_params, rng=rng)
 
         # Initializing the current sum of the transition probabilities:
-        self.curr_sum_A = np.zeros((self.S, self.S)) if not curr_sum_A else curr_sum_A
+        self.curr_sum_P_hat = np.zeros((self.S, self.S)) if not curr_sum_P_hat else curr_sum_P_hat
         self.prev_state = prev_state # The most recent hidden state.
         self.curr_obs = [] # Cache the observations passed into "partial_fit"
 
     def update_hat_H(self, y):
         self.curr_obs = y
-        logger.info('Skipped, since we are doing a simple count estimation of A.')
+        logger.info('Skipped, since we are doing a simple count estimation of P.')
 
     def update_hat_K(self):
-        logger.info('Skipped, since we are doing a simple count estimation of A.')
+        logger.info('Skipped, since we are doing a simple count estimation of P.')
 
     def find_closest_hidden_state(self, yi, return_min_value=False):
         curr_min = float('inf')
@@ -82,7 +82,7 @@ class _Base_Simple_GaussianHMM(_BaseGaussianHMM):
         else:
             return curr_min_state
 
-    def update_hat_A(self):
+    def update_P_hat(self):
         y = self.curr_obs.copy()
         if self.prev_state is not None:
             y.insert(0, self.prev_state) 
@@ -90,17 +90,17 @@ class _Base_Simple_GaussianHMM(_BaseGaussianHMM):
         for yi in tqdm(y, desc="  Match obs to mean"):
             states.append(self.find_closest_hidden_state(yi))
 
-        logger.info('Counting the transitions and updating estimation of A accordingly.')
+        logger.info('Counting the transitions and updating estimation of P accordingly.')
 
         for i, state in enumerate(states[:-1]):
             next_state = states[i+1]
-            self.curr_sum_A[state, next_state] += 1
+            self.curr_sum_P_hat[state, next_state] += 1
 
         for i in range(self.S):
-            if self.curr_sum_A[i, :].sum() == 0:
-                self.A_hat[i, :] = 1/self.S
+            if self.curr_sum_P_hat[i, :].sum() == 0:
+                self.P_hat[i, :] = 1/self.S
             else:
-                self.A_hat[i, :] = self.curr_sum_A[i, :]/self.curr_sum_A[i, :].sum()
+                self.P_hat[i, :] = self.curr_sum_P_hat[i, :]/self.curr_sum_P_hat[i, :].sum()
 
         # Reset the internal state for the next partial_fit call:
         self.prev_state = y[-1]
@@ -246,23 +246,44 @@ class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
     and the Gaussian parameters are learned using the method described in
     Zanini et al., 2017.
     """
-    def __init__(self, 
-                 S=3, 
-                 N=0, 
-                 init_B_params=None,
-                 rng=None,
+    def __init__(
+        self, 
+        S=3, 
+        N=0, 
+        init_B_params=None,
+        rng=None,
 
-                 curr_sum_A=None,
-                 prev_state=None,
+        curr_sum_P_hat=None,
+        prev_state=None,
 
-                 p=2, 
-                 alpha=.25, 
-                 num_samples_sigma=400,
-                 num_samples_sigma_prime=400,
-                 num_samples_sigma_prime_prime=400,
+        p=2, 
+        alpha=.25, 
+        num_samples_sigma=400,
+        num_samples_sigma_prime=400,
+        num_samples_sigma_prime_prime=400,
 
-                 min_sigma=np.spacing(1),
-                 ):
+        min_sigma=np.spacing(1),
+        ):
+      
+        # NOTE: For some reason when the order of
+        # the two .__init__() calls are switched,
+        # the value of self.p is initialized to the
+        # default value of SPDGaussianHMM, as opposed
+        # to the values of p provided. A deeper
+        # investigation into polymorphic behaviors in Python 
+        # is needed.
+
+        _Base_Simple_GaussianHMM.__init__(
+            self, 
+            S=S, 
+            N=N, 
+            init_B_params=init_B_params, 
+            rng=rng,
+
+            curr_sum_P_hat=curr_sum_P_hat, 
+            prev_state=prev_state,
+            )
+
         SPDGaussianHMM.__init__(
             self, 
             max_lag=1, 
@@ -278,7 +299,6 @@ class SPD_Zanini_Simple_GaussianHMM(_Base_Simple_GaussianHMM, SPDGaussianHMM):
             num_samples_sigma_prime=num_samples_sigma_prime,
             num_samples_sigma_prime_prime=num_samples_sigma_prime_prime,
             min_sigma=min_sigma)
-        _Base_Simple_GaussianHMM.__init__(self, S=S, N=N, init_B_params=init_B_params, rng=rng, curr_sum_A=curr_sum_A, prev_state=prev_state,)
 
 
 class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
@@ -301,7 +321,7 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
                  init_B_params=None,
                  rng=None,
 
-                 curr_sum_A=None,
+                 curr_sum_P_hat=None,
                  prev_state=None,
 
                  p=2, 
@@ -325,7 +345,7 @@ class SPD_EM_Simple_GaussianHMM(SPD_Zanini_Simple_GaussianHMM):
                 init_B_params=init_B_params,
                 rng=rng,
 
-                curr_sum_A=curr_sum_A,
+                curr_sum_P_hat=curr_sum_P_hat,
                 prev_state=prev_state,
 
                 p=p, 

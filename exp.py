@@ -39,7 +39,7 @@ def gen_chain_Salem2021(num_ex=10000, rng=None):
     disp3 = .4
 
 
-    A = np.array([[.4, .3, .3],
+    P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
     phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
@@ -51,7 +51,7 @@ def gen_chain_Salem2021(num_ex=10000, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -70,7 +70,7 @@ def gen_chain_Salem2021(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_chain_Tupker2021(num_ex=10000, rng=None):
     if rng is None:
@@ -85,7 +85,7 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
     mean3 = torch.tensor([-.29, .82])
     disp3 = 1
 
-    A = np.array([[.4, .3, .3],
+    P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
     phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
@@ -97,7 +97,7 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -116,7 +116,7 @@ def gen_chain_Tupker2021(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return x, y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_chain_2by2_N5(num_ex=400, rng=None):
     '''
@@ -139,7 +139,7 @@ def gen_chain_2by2_N5(num_ex=400, rng=None):
 
     disp1 = disp2 = disp3 = disp4 = disp5 = .1
 
-    A = np.array([[.3, .1, .2, .1, .3],
+    P = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
@@ -153,7 +153,7 @@ def gen_chain_2by2_N5(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -184,7 +184,7 @@ def gen_chain_2by2_N5(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_chain_3by3_N2(num_ex=400, rng=None):
     '''
@@ -205,7 +205,7 @@ def gen_chain_3by3_N2(num_ex=400, rng=None):
     y2 = randSPDGauss.randSPDGauss(true_mean2, true_disp2, num_ex, rng=rng)
     y2 = [y2[:,:,i] for i in range(y2.shape[2])]
 
-    A = np.array([[.4, .6],
+    P = np.array([[.4, .6],
                   [.2, .8]])
 
     phi = [.25, .75]
@@ -217,7 +217,7 @@ def gen_chain_3by3_N2(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -229,7 +229,7 @@ def gen_chain_3by3_N2(num_ex=400, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
                       max_lag=3, num_samples_K=500, num_runs=20, seed=None):
@@ -270,8 +270,8 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
         pred_centroids = np.array([p[0] for p in m.B_params])
         true_disp = np.array([l[1] for l in label['B']])
         pred_disp = np.array([p[1] for p in m.B_params])
-        true_trans_mat = label['A']
-        pred_trans_mat = m.A_hat
+        true_trans_mat = label['P']
+        pred_trans_mat = m.P_hat
 
         perm = match_permutation(true_centroids, pred_centroids, 3, m.compute_dist)
         pred_centroids = pred_centroids[perm]
@@ -304,7 +304,7 @@ def run_Salem2021_exp(given_true=False, output_name='output', output_path='./',
     logger.info('Mean dispersions are {}'.format(mean_dispersions))
     logger.info('2norm(sigma-sigma_hat) is {}'.format(np.linalg.norm(mean_dispersions - true_disp)))
     logger.info('Mean transition matrix is {}'.format(mean_trans_mat))
-    logger.info('Frob(A-Ahat) is {}'.format(np.linalg.norm(mean_trans_mat - true_trans_mat)))
+    logger.info('Frob(P-Phat) is {}'.format(np.linalg.norm(mean_trans_mat - true_trans_mat)))
     logger.info('Mean runtime is {}'.format(mean_runtime))
 
     np.save(output_path + '/' + output_name + '_centroids.npy', ret_centroids)
@@ -355,8 +355,8 @@ def run_Tupker2021_exp(given_true=False, output_name='output', output_path='./',
         pred_centroids = np.array([p[0] for p in m.B_params])
         true_disp = np.array([l[1] for l in label['B']])
         pred_disp = np.array([p[1] for p in m.B_params])
-        true_trans_mat = label['A']
-        pred_trans_mat = m.A_hat
+        true_trans_mat = label['P']
+        pred_trans_mat = m.P_hat
         ret_trans_mat_frob_diff[it] = np.linalg.norm(pred_trans_mat - true_trans_mat)
 
         perm = match_permutation(true_centroids, pred_centroids, 3, m.compute_dist)
@@ -407,7 +407,7 @@ def tune_hyperparams(input_name, input_path, output_name, output_path, total_tri
     ax_client.create_experiment(
         name = "geomhmm_hyperparam_tuning",
         parameters = parameters,
-        objective_name = 'Frob(A-Ahat)',
+        objective_name = 'Frob(P-Phat)',
         minimize=True
     )
 
@@ -460,7 +460,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
 
     true_params_fname = f"{out_dirname}/true_params.json"
     true_params_content = {}
-    true_params_content['trans_matrix'] = label['A'].copy().flatten().tolist()
+    true_params_content['trans_matrix'] = label['P'].copy().flatten().tolist()
     true_params_content['gaussian_params'] = {}
     for index, true_param in enumerate(label['B']):
         if "PoincareDisk" in config['learner']['name']:
@@ -605,7 +605,7 @@ def generate_evolving_estimates(input_config='in.json', output_path='./'):
         # Estimated transition, H, and K:
         for i in range(config['num_hidden_states']):
             for j in range(config['num_hidden_states']):
-                est_trans_mat_content[f"P_{i}{j}"].append(m.A_hat[i, j])
+                est_trans_mat_content[f"P_{i}{j}"].append(m.P_hat[i, j])
                 if 'max_lag' in config['learner']:
                     est_K_content[f"K_{i}{j}"].append(m.K_hat[i, j])
                     for lag_ind in range(config['learner']['max_lag']+1):
@@ -654,7 +654,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
 
     true_params_fname = f"{out_dirname}/true_params.json"
     true_params_content = {}
-    true_params_content['trans_matrix'] = label['A'].copy().flatten().tolist()
+    true_params_content['trans_matrix'] = label['P'].copy().flatten().tolist()
     true_params_content['gaussian_params'] = {}
     for index, true_param in enumerate(label['B']):
         if "PoincareDisk" in config['learner']['name']:
@@ -795,7 +795,7 @@ def generate_nonevolving_estimates(input_config='in.json', output_path='./'):
     # Estimated transition, H, and K:
     for i in range(config['num_hidden_states']):
         for j in range(config['num_hidden_states']):
-            est_trans_mat_content[f"P_{i}{j}"].append(m.A_hat[i, j])
+            est_trans_mat_content[f"P_{i}{j}"].append(m.P_hat[i, j])
             if 'max_lag' in config['learner']:
                 est_K_content[f"K_{i}{j}"].append(m.K_hat[i, j])
                 for lag_ind in range(config['learner']['max_lag']+1):
@@ -843,7 +843,7 @@ def sensitivity_analysis(input_config='in.json', output_path='./'):
 
     true_params_fname = f"{out_dirname}/true_params.json"
     true_params_content = {}
-    true_params_content['trans_matrix'] = label['A'].copy().flatten().tolist()
+    true_params_content['trans_matrix'] = label['P'].copy().flatten().tolist()
     true_params_content['gaussian_params'] = {}
     for index, true_param in enumerate(label['B']):
         if "PoincareDisk" in config['learner']['name']:
@@ -933,15 +933,20 @@ def main():
     args = parse_args()
 
     if args.mode == 'Salem2021':
+        # Example usage: python exp.py --mode Salem2021 --oname output --opath ./out --seed=2022 --givenTrue False
         run_Salem2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath, seed=args.seed)
     elif args.mode == 'Tupker2021':
+        # Example usage: python exp.py --mode Tupker2021 --oname output --opath ./out --seed=2022 --givenTrue False
         run_Tupker2021_exp(given_true=args.givenTrue, output_name=args.oname, output_path=args.opath, seed=args.seed)
     elif args.mode == 'hyp_tuning':
+        # Example usage: python exp.py --mode hyp_tuning --ipath exp_config_templates --iname example_tuning_config.json --opath ./out --totT 2
         tune_hyperparams(input_name=args.iname, input_path=args.ipath,
                          output_path=args.opath, output_name=args.oname, total_trials=args.totT)
     elif args.mode == 'evolv_est':
+        # Example usage: python exp.py --mode evolv_est --iname exp_config_templates/example_evolving_estimates_config.json --opath ./
         generate_evolving_estimates(input_config=args.iname, output_path=args.opath)
     elif args.mode == 'nonevolv_est':
+        # Example usage: python exp.py --mode nonevolv_est --iname exp_config_templates/example_evolving_estimates_config.json --opath ./
         generate_nonevolving_estimates(input_config=args.iname, output_path=args.opath)
     else:
         raise ValueError('The experiment task {} is invalid. Exiting.'.format(args.mode))

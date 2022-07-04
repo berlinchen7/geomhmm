@@ -44,7 +44,7 @@ class _BaseGaussianHMM(BaseEstimator):
         ## Variables to be learned:
         # phi denotes the stationary distribution; initialized to uniform:
         self.phi = np.ones(self.S)/self.S
-        self.A_hat = np.zeros([self.S, self.S]) # Transition matrix
+        self.P_hat = np.zeros([self.S, self.S]) # Transition matrix
         # B_params parametrizes the Gaussian mixture, represented as a list
         # of [centroid, dispersion]:
         if init_B_params is None:
@@ -52,7 +52,7 @@ class _BaseGaussianHMM(BaseEstimator):
         else:
             self.B_params = init_B_params
 
-        ## Variables needed to compute A:
+        ## Variables needed to compute P_hat:
         self.H_hat = np.zeros([self.max_lag + 1, self.S, self.S])
         self.H_N = np.zeros(self.max_lag + 1) # Number of samples used to estimate H_hat
         self.K_hat = np.zeros([self.S, self.S])
@@ -143,15 +143,14 @@ class _BaseGaussianHMM(BaseEstimator):
     def update_hat_K(self):
         pass
 
-    def update_hat_A(self):
-        '''Update estimate for A using cvxopt.
+    def update_P_hat(self):
+        '''Update estimate for P using cvxopt.
 
         Notation for the qp solver is the same as the one used in the following:
         https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
         '''
 
-        # The following is the "A hat" in Matila et al., 2020, which we rename since A hat is the 
-        # transition matrix in our case:
+        # The following is the "A hat" in Matila et al., 2020, which we rename to X_hat:
         X_hat = []
         solvers.options['show_progress'] = False
 
@@ -204,8 +203,8 @@ class _BaseGaussianHMM(BaseEstimator):
         b = matrix(np.ones(self.S))
 
         sol = solvers.qp(P, q, G, h, A, b, verbose=False)
-        self.A_hat = np.array(sol['x']).reshape(self.S*self.S)
-        self.A_hat = np.reshape(curr_sol, (self.S, self.S), order='F')
+        self.P_hat = np.array(sol['x']).reshape(self.S*self.S)
+        self.P_hat = np.reshape(curr_sol, (self.S, self.S), order='F')
 
 
     def partial_fit(self, y, fit_B_phi=True):
@@ -240,7 +239,7 @@ class _BaseGaussianHMM(BaseEstimator):
             self.update_phi_B(y)
             t_mixture_end = perf_counter()
             logger.info('Timer for fitting mixture model ended.')
-            logger.info(f"Fitting the mixture model takes {t_mixture_end-t_mixture_start} seconds.")
+            logger.info(f"Fitting the mixture model took {t_mixture_end-t_mixture_start} seconds.")
             logger.info('Partial fit on phi and B ended.')
 
         t_trans_mat_start = perf_counter()
@@ -255,13 +254,13 @@ class _BaseGaussianHMM(BaseEstimator):
         self.update_hat_K()
         logger.info('Partial fit on K ended.')
 
-        logger.info('Partial fit on A started.')
-        # Update A hat:
-        self.update_hat_A()
-        logger.info('Partial fit on A ended.')
+        logger.info('Partial fit on P started.')
+        # Update P hat:
+        self.update_P_hat()
+        logger.info('Partial fit on P ended.')
         t_trans_mat_end = perf_counter()
         logger.info('Timer for fitting transition matrix ended.')
-        logger.info(f"Fitting the transition matrix takes {t_trans_mat_end-t_trans_mat_start} seconds.")
+        logger.info(f"Fitting the transition matrix took {t_trans_mat_end-t_trans_mat_start} seconds.")
         if fit_B_phi:
             logger.info(f"Total runtime for fitting HMM given the current batch of obs is {t_trans_mat_end-t_mixture_start} seconds.")
 

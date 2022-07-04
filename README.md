@@ -23,7 +23,7 @@ from exp import gen_chain_Tupker2021
 _, y, _ = gen_chain_Tupker2021() # Generate an example Poincare-disk-valued HMM
 m = PoincareDiskGaussianHMM(S=3, max_lag=3, num_samples_K=500) # Initialize the learner
 m.partial_fit(y) # Learning step
-print(m.B_params, m.phi, m.A_hat) # Print the current estimates
+print(m.B_params, m.phi, m.P_hat) # Print the current estimates
 ```
 
 ## What's inside

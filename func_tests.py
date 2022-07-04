@@ -44,7 +44,7 @@ def gen_ex1(num_ex=1000, rng=None):
 
     phi = [1]
 
-    return y, {'B': [[true_mean, true_disp]], 'A': true_trans_mat, 'phi': phi}
+    return y, {'B': [[true_mean, true_disp]], 'P': true_trans_mat, 'phi': phi}
 
 def gen_ex2(num_ex=200, rng=None):
     '''
@@ -68,7 +68,7 @@ def gen_ex2(num_ex=200, rng=None):
     y2 = randSPDGauss.randSPDGauss(true_mean2, true_disp2, num_ex, rng=rng)
     y2 = [y2[:,:,i] for i in range(y2.shape[2])]
 
-    A = np.array([[.4, .6],
+    P = np.array([[.4, .6],
                   [.2, .8]])
 
     phi = [.25, .75]
@@ -80,7 +80,7 @@ def gen_ex2(num_ex=200, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -92,7 +92,7 @@ def gen_ex2(num_ex=200, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[true_mean1, true_disp1], [true_mean2, true_disp2]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex3(num_ex=400, rng=None):
     '''
@@ -115,7 +115,7 @@ def gen_ex3(num_ex=400, rng=None):
 
     disp1 = disp2 = disp3 = .05
 
-    A = np.array([[.6, .1, .3],
+    P = np.array([[.6, .1, .3],
                   [.1, .7, .2],
                   [.2, .2, .6]])
     phi = [.2759, .3448, .3793] # This is the approximate solution.
@@ -127,7 +127,7 @@ def gen_ex3(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -149,7 +149,7 @@ def gen_ex3(num_ex=400, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex4(num_ex=200, rng=None):
     '''
@@ -166,7 +166,7 @@ def gen_ex4(num_ex=200, rng=None):
     disp2 = np.eye(1)*.5
 
 
-    A = np.array([[.4, .6],
+    P = np.array([[.4, .6],
                   [.2, .8]])
 
     phi = [.25, .75]
@@ -178,7 +178,7 @@ def gen_ex4(num_ex=200, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -196,7 +196,7 @@ def gen_ex4(num_ex=200, rng=None):
             y.append(y2.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex5(num_ex=10000, rng=None):
     '''
@@ -217,7 +217,7 @@ def gen_ex5(num_ex=10000, rng=None):
     mean3 = torch.tensor([.82, -.29])
     disp3 = 1
 
-    A = np.array([[.4, .3, .3],
+    P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
     phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution. 
@@ -229,7 +229,7 @@ def gen_ex5(num_ex=10000, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -248,7 +248,7 @@ def gen_ex5(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex6(num_ex=10000, rng=None):
     '''
@@ -267,7 +267,7 @@ def gen_ex6(num_ex=10000, rng=None):
     mean3 = np.array([1])
     disp3 = np.eye(1)*.5
 
-    A = np.array([[.6, .1, .3],
+    P = np.array([[.6, .1, .3],
                   [.1, .7, .2],
                   [.2, .2, .6]])
     phi = [.2759, .3448, .3793] # This is the approximate solution.
@@ -279,7 +279,7 @@ def gen_ex6(num_ex=10000, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -300,7 +300,7 @@ def gen_ex6(num_ex=10000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex7(num_ex=1000, rng=None):
     '''
@@ -322,7 +322,7 @@ def gen_ex7(num_ex=1000, rng=None):
     disp3 = .4
 
 
-    A = np.array([[.4, .3, .3],
+    P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
     phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
@@ -334,7 +334,7 @@ def gen_ex7(num_ex=1000, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -353,7 +353,7 @@ def gen_ex7(num_ex=1000, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex8(num_ex=400, rng=None):
     '''
@@ -376,7 +376,7 @@ def gen_ex8(num_ex=400, rng=None):
 
     disp1 = disp2 = disp3 = disp4 = disp5 = .1
 
-    A = np.array([[.3, .1, .2, .1, .3],
+    P = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
@@ -390,7 +390,7 @@ def gen_ex8(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -421,7 +421,7 @@ def gen_ex8(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex9(num_ex=400, rng=None):
     '''
@@ -447,7 +447,7 @@ def gen_ex9(num_ex=400, rng=None):
     disp5 = np.eye(1)*.1
 
 
-    A = np.array([[.3, .1, .2, .1, .3],
+    P = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
@@ -461,7 +461,7 @@ def gen_ex9(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -489,7 +489,7 @@ def gen_ex9(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex10(num_ex=400, rng=None):
     '''
@@ -514,7 +514,7 @@ def gen_ex10(num_ex=400, rng=None):
     mean5 = torch.tensor([-.82, -.29])
     disp5 = .1
 
-    A = np.array([[.3, .1, .2, .1, .3],
+    P = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
@@ -528,7 +528,7 @@ def gen_ex10(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -554,7 +554,7 @@ def gen_ex10(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex11(num_ex=400, rng=None):
     '''
@@ -576,7 +576,7 @@ def gen_ex11(num_ex=400, rng=None):
 
     disp1 = disp2 = disp3 = 0.1
 
-    A = np.array([[.4, .3, .3],
+    P = np.array([[.4, .3, .3],
                   [.2, .6, .2],
                   [.1, .1, .8]])
     phi = [0.18181818, 0.27272727, 0.54545455] # This is the approximate solution.
@@ -588,7 +588,7 @@ def gen_ex11(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -610,7 +610,7 @@ def gen_ex11(num_ex=400, rng=None):
             y.append(y3.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 def gen_ex12(num_ex=400, rng=None):
     '''
@@ -633,7 +633,7 @@ def gen_ex12(num_ex=400, rng=None):
 
     disp1 = disp2 = disp3 = disp4 = disp5 = 1
 
-    A = np.array([[.3, .1, .2, .1, .3],
+    P = np.array([[.3, .1, .2, .1, .3],
                   [.1, .4, .2, .2, .1],
                   [.2, .2, .3, .1, .2],
                   [.1, .1, .2, .5, .1],
@@ -647,7 +647,7 @@ def gen_ex12(num_ex=400, rng=None):
     curr_state = np.argmax(curr_state, axis=1)[0]
     x.append(curr_state)
     for i in range(num_ex-1):
-        curr_state = rng.multinomial(1, A[curr_state], size=1)
+        curr_state = rng.multinomial(1, P[curr_state], size=1)
         curr_state = np.argmax(curr_state, axis=1)[0]
         x.append(curr_state)
 
@@ -678,7 +678,7 @@ def gen_ex12(num_ex=400, rng=None):
             y.append(y5.pop())
 
     return y, {'B': [[mean1, disp1], [mean2, disp2], [mean3, disp3], [mean4, disp4], [mean5, disp5]],
-            'A': A, 'phi': phi}
+            'P': P, 'phi': phi}
 
 
 def compute_loss(m, label):
@@ -686,10 +686,10 @@ def compute_loss(m, label):
     pred_centroids = np.array([p[0] for p in m.B_params])
     true_disp = np.array([l[1] for l in label['B']])
     pred_disp = np.array([p[1] for p in m.B_params])
-    true_trans_mat = label['A']
-    pred_trans_mat = m.A_hat.copy()
+    true_trans_mat = label['P']
+    pred_trans_mat = m.P_hat.copy()
 
-    perm = match_permutation(true_centroids, pred_centroids, m.A_hat.shape[0], m.compute_dist)
+    perm = match_permutation(true_centroids, pred_centroids, m.P_hat.shape[0], m.compute_dist)
     pred_centroids = pred_centroids[perm]
     pred_centroids = np.array(pred_centroids)
     true_centroids = np.array(true_centroids)
